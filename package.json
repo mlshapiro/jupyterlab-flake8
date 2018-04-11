@@ -1,0 +1,44 @@
+{
+  "name": "jupyterlab-pylint",
+  "version": "0.1.0",
+  "description": "jupyterlab extension for integrating pylint",
+  "keywords": [
+    "jupyter",
+    "jupyterlab",
+    "jupyterlab-extension"
+  ],
+  "homepage": "https://github.com/mlshapiro/jupyterlab-pylint",
+  "bugs": {
+    "url": "https://github.com/mlshapiro/jupyterlab-pylint/issues"
+  },
+  "license": "BSD-3-Clause",
+  "author": "Marc Shapiro",
+  "files": [
+    "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf}",
+    "style/**/*.{css,eot,gif,html,jpg,json,png,svg,woff2,ttf}"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mlshapiro/jupyterlab-pylint.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf lib",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "^0.15.0",
+    "@jupyterlab/mainmenu": "^0.4.4",
+    "@jupyterlab/notebook": "^0.15.7",
+    "@jupyterlab/terminal": "^0.15.4"
+  },
+  "devDependencies": {
+    "rimraf": "^2.6.1",
+    "typescript": "~2.6.2"
+  },
+  "jupyterlab": {
+    "extension": true
+  }
+}
