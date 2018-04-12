@@ -31,7 +31,7 @@ class Linter {
   term: Terminal;
 
   // Default Options
-  loaded: boolean = false;          // if pylint is available
+  loaded: boolean = false;          // if flake8 is available
   toggled: boolean = true;          // turn on.off linter
 
   linting: boolean = false;          // flag if the linter is processing
@@ -59,7 +59,7 @@ class Linter {
   }
 
   /**
-   * Load terminal session and pylint
+   * Load terminal session and flake8
    */
   async load_linter(){
 
@@ -88,7 +88,7 @@ class Linter {
   }
 
   /**
-   * Check to see if pylint is available on the machine
+   * Check to see if flake8 is available on the machine
    */
   check_flake8() {
     let self = this;
@@ -103,7 +103,7 @@ class Linter {
         return;
       }
 
-      // if message includes pylint, then `which pylint` was successful and we can say the library is loaded
+      // if message includes flake8, then `which flake8` was successful and we can say the library is loaded
       if (message.includes('flake8')) {
         self.loaded = true;
         self.activate_flake8();
@@ -117,13 +117,13 @@ class Linter {
       self.term.session.messageReceived.disconnect(onTerminalMessage)
     }
 
-    // listen for stdout in onTerminalMessage and ask `which pylint`
+    // listen for stdout in onTerminalMessage and ask `which flake8`
     this.term.session.messageReceived.connect(onTerminalMessage);
     this.term.session.send({type: 'stdin', content: ['which flake8\r']})
   }
 
   /**
-   * Activate pylint terminal reader
+   * Activate flake8 terminal reader
    */
   activate_flake8() {
     // listen for stdout in onLintMessage
@@ -255,17 +255,17 @@ class Linter {
  * Activate extension
  */
 function activate(app: JupyterLab, tracker: INotebookTracker, palette: ICommandPalette, mainMenu: IMainMenu) {
-  console.log('jupyterlab-pylint activated');
+  console.log('jupyterlab-flake8 activated');
   const pl = new Linter(app, tracker, palette, mainMenu);
   console.log('linter load', pl)
 };
 
 
 /**
- * Initialization data for the jupyterlab-pylint extension.
+ * Initialization data for the jupyterlab-flake8 extension.
  */
 const extension: JupyterLabPlugin<void> = {
-  id: 'jupyterlab-pylint',
+  id: 'jupyterlab-flake8',
   autoStart: true,
   activate: activate,
   requires: [INotebookTracker, ICommandPalette, IMainMenu]

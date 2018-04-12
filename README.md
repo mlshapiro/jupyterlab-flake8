@@ -1,6 +1,8 @@
-# Jupyterlab-pylint
+> This is still in development
 
-Jupyterlab extension for [Pylint](https://www.pylint.org/) 
+# Jupyterlab-flake8
+
+Jupyterlab extension for flake8
 
 ## Prerequisites
 
@@ -9,7 +11,7 @@ Jupyterlab extension for [Pylint](https://www.pylint.org/)
 ## Installation
 
 ```bash
-jupyter labextension install jupyterlab-pylint
+jupyter labextension install jupyterlab-flake8
 ```
 
 ## Development
@@ -17,7 +19,7 @@ jupyter labextension install jupyterlab-pylint
 It is advisable to use a seperate conda environment for development:
 
 ```bash
-$ conda create -n jlpylint anaconda
+$ conda create -n jlflake8 anaconda
 ```
 
 For a development install (requires npm version 4 or later), do the following in the repository directory:

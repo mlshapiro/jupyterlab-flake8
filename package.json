@@ -1,15 +1,15 @@
 {
-  "name": "jupyterlab-pylint",
+  "name": "jupyterlab-flake8",
   "version": "0.1.0",
-  "description": "jupyterlab extension for integrating pylint",
+  "description": "jupyterlab extension for integrating flake8",
   "keywords": [
     "jupyter",
     "jupyterlab",
     "jupyterlab-extension"
   ],
-  "homepage": "https://github.com/mlshapiro/jupyterlab-pylint",
+  "homepage": "https://github.com/mlshapiro/jupyterlab-flake8",
   "bugs": {
-    "url": "https://github.com/mlshapiro/jupyterlab-pylint/issues"
+    "url": "https://github.com/mlshapiro/jupyterlab-flake8/issues"
   },
   "license": "BSD-3-Clause",
   "author": "Marc Shapiro",
@@ -21,7 +21,7 @@
   "types": "lib/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mlshapiro/jupyterlab-pylint.git"
+    "url": "https://github.com/mlshapiro/jupyterlab-flake8.git"
   },
   "scripts": {
     "build": "tsc",
