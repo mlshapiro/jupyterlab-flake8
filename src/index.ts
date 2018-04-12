@@ -31,9 +31,14 @@ class PyLinter {
   term: Terminal;
 
   // Default Options
-  loaded: boolean = false;      // if pylint is available
-  toggled: boolean = true;      // turn on.off linter
-  pylintrc: string = '.pylintrc';    // name of pylintrc file
+  loaded: boolean = false;          // if pylint is available
+  toggled: boolean = true;          // turn on.off linter
+  pylintrc: string = '.pylintrc';   // name of pylintrc file
+
+  linting: boolean = false;          // flag if the linter is processing
+
+  // cache
+  nbtext: string = '';                // current nb text
 
   constructor(app: JupyterLab, tracker: INotebookTracker, palette: ICommandPalette, mainMenu: IMainMenu){
    
@@ -103,8 +108,9 @@ class PyLinter {
       if (message.includes('pylint')) {
         self.loaded = true;
         self.activate_pylint();
+        console.log('pylint loaded');
       } else {
-        alert('Pylint was not found on the machine. Install with `pip install pylint` or `conda install pylint`')
+        alert('Pylint was not found on the machine. \n\nInstall with `pip install pylint` or `conda install pylint`')
         self.loaded = false;
       }
 
@@ -192,22 +198,82 @@ class PyLinter {
   }
 
   /**
+   * Generate lint command
+   * adapted from sublime-linter pylint plugin 
+   * https://github.com/SublimeLinter/SublimeLinter-pylint
+   * 
+   * @return {string} [description]
+   */
+  lint_cmd(temp_filename:string): string {
+    return 'pylint --msg-template={line}:{column}:{msg_id}: {msg} ({symbol})' +
+            '--module-rgx=.*' +     //don't check the module name
+            '--reports=n' +         // remove tables
+            '--persistent=n' +      // don't save the old score (no sense for temp)
+            temp_filename;          // temp file saved
+
+  }
+
+
+  /**
    * Run linter when active cell changes
    */
   onActiveCellChanged(): void {
+
+    // load notebook
+    let notebook = this.tracker.currentWidget.notebook;
+    let pytext_array =  notebook.widgets
+      .filter(cell => {
+        return cell.model.type === 'code'
+      })
+      .map(cell => {
+        if (cell.model.type === 'code') {
+          return cell.model.value.text;
+        } else {
+          return undefined
+        }
+      });
+
+    let pytext = pytext_array.join('\n\n');
+    if (pytext !== this.nbtext) {
+      this.nbtext = pytext;
+    }
+    console.log(this.nbtext);
+
+    this.manager.contents.save('pylinttmp.py');
+
+    if (this.loaded && this.toggled) {
+        if (this.linting) {
+          console.log('linting');
+          let lint_cmd = this.lint_cmd('pylinttmp.py')
+            //         'pylint@python',
+//         '--msg-template=\'{line}:{column}:{msg_id}: {msg} ({symbol})\'',
+//         '--module-rgx=.*',  # don't check the module name
+//         '--reports=n',      # remove tables
+// '--persistent=n', # don't save the old score (no sense for temp)
+          this.term.session.send({type: 'stdin', content: ['which pylint\r']})
+
     
     // only run when on a code cell
     let active_cell = this.tracker.activeCell;
     if ( (active_cell !== null) && (active_cell.model.type === 'code') ){
+    //   console.log(active_cell.model);
+    //   console.log('active code cell changed');
+    //   let cell_text:string = active_cell.model.value.text;
+    //   console.log(cell_text);
 
-      console.log('active code cell changed')
-      let editor: any = active_cell.editor;
-      let current_mode: string = editor.getOption('mode');
+      // let current_mode: string = editor.getOption('mode');
+
+      // let editor: any = active_cell.editor;
+      // console.log(editor)
       
-      if (this.toggled) {
+      if (this.loaded && this.toggled) {
+        if (this.linting) {
+          console.log('linting');
+        } else {
+          // console.log(current_mode);
+        }
         // this.term.session.send({type: 'stdin', content: ['which pylint\r']})
-
-        editor.setOption("mode", this.define_mode(current_mode));
+        // editor.setOption("mode", this.define_mode(current_mode));
       } else {
         // not sure what this does yet
         // let original_mode = (current_mode.match(/^spellcheck_/)) ? current_mode.substr(11) : current_mode
