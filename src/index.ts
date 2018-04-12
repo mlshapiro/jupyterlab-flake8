@@ -23,7 +23,7 @@ import '../style/index.css';
 /**
  * Linter
  */
-class PyLinter {
+class Linter {
   app: JupyterLab;
   tracker: INotebookTracker;
   palette: ICommandPalette;
@@ -33,7 +33,6 @@ class PyLinter {
   // Default Options
   loaded: boolean = false;          // if pylint is available
   toggled: boolean = true;          // turn on.off linter
-  pylintrc: string = '.pylintrc';   // name of pylintrc file
 
   linting: boolean = false;          // flag if the linter is processing
 
@@ -66,7 +65,7 @@ class PyLinter {
 
     // Bail if there are no terminals available.
     if (!this.app.serviceManager.terminals.isAvailable()) {
-      console.log('Disabling pylinter plugin because it cant access terminal');
+      console.log('Disabling jupyterlab-flake8 plugin because it cant access terminal');
       this.loaded = false;
       this.toggled = false;
       return;
@@ -79,7 +78,7 @@ class PyLinter {
 
       // wait 2 seconds for terminal to load and get initial commands out of its system
       setTimeout(() => {
-        this.check_pylint();
+        this.check_flake8();
       }, 2000)
     }
     catch(e) {
@@ -91,7 +90,7 @@ class PyLinter {
   /**
    * Check to see if pylint is available on the machine
    */
-  check_pylint() {
+  check_flake8() {
     let self = this;
 
     // need to figure out how to import ISession and IMessage
@@ -100,17 +99,17 @@ class PyLinter {
       console.log(message);
 
       // return if its just a message reflection
-      if (message.includes('which pylint')) {
+      if (message.includes('which flake8')) {
         return;
       }
 
       // if message includes pylint, then `which pylint` was successful and we can say the library is loaded
-      if (message.includes('pylint')) {
+      if (message.includes('flake8')) {
         self.loaded = true;
-        self.activate_pylint();
-        console.log('pylint loaded');
+        self.activate_flake8();
+        console.log('flake8 loaded');
       } else {
-        alert('Pylint was not found on the machine. \n\nInstall with `pip install pylint` or `conda install pylint`')
+        alert('Flake8 was not found on the machine. \n\nInstall with `pip install flake8` or `conda install flake8`')
         self.loaded = false;
       }
 
@@ -120,27 +119,15 @@ class PyLinter {
 
     // listen for stdout in onTerminalMessage and ask `which pylint`
     this.term.session.messageReceived.connect(onTerminalMessage);
-    this.term.session.send({type: 'stdin', content: ['which pylint\r']})
+    this.term.session.send({type: 'stdin', content: ['which flake8\r']})
   }
 
   /**
    * Activate pylint terminal reader
    */
-  activate_pylint() {
+  activate_flake8() {
     // listen for stdout in onLintMessage
     this.term.session.messageReceived.connect(this.onLintMessage);
-  }
-
-  
-  /**
-   * Handle terminal message during linting
-   * // need to figure out how to import ISession and IMessage
-   * @param {any} sender [description]
-   * @param {any} msg    [description]
-   */
-  onLintMessage(sender:any, msg:any): void {
-    let message:string = msg.content[0];
-    console.log(message);
   }
 
   /**
@@ -173,12 +160,12 @@ class PyLinter {
    * Create menu / command items
    */
   add_commands(){
-    let category = 'Pylint';
+    let category = 'Flake8';
 
     // define all commands
     let commands:any = {
-      'pylint:toggle': {
-        label: "Toggle pylint",
+      'flake8:toggle': {
+        label: "Toggle flake8",
         isEnabled: () => { return this.loaded},
         isToggled: () => { return this.toggled},
         execute: () => {
@@ -199,25 +186,20 @@ class PyLinter {
 
   /**
    * Generate lint command
-   * adapted from sublime-linter pylint plugin 
-   * https://github.com/SublimeLinter/SublimeLinter-pylint
    * 
+   * @param  {string} contents [description]
    * @return {string} [description]
    */
-  lint_cmd(temp_filename:string): string {
-    return 'pylint --msg-template={line}:{column}:{msg_id}: {msg} ({symbol})' +
-            '--module-rgx=.*' +     //don't check the module name
-            '--reports=n' +         // remove tables
-            '--persistent=n' +      // don't save the old score (no sense for temp)
-            temp_filename;          // temp file saved
-
+  lint_cmd(contents:string): string {
+    return `"${contents}" | flake8`
   }
 
 
   /**
-   * Run linter when active cell changes
+   * [lint description]
    */
-  onActiveCellChanged(): void {
+  lint() {
+    console.log('linting');
 
     // load notebook
     let notebook = this.tracker.currentWidget.notebook;
@@ -239,81 +221,32 @@ class PyLinter {
     }
     console.log(this.nbtext);
 
-    this.manager.contents.save('pylinttmp.py');
+    let lint_cmd = this.lint_cmd(this.nbtext);
+    this.term.session.send({type: 'stdin', content: [`${lint_cmd}\r`]})
+  }
 
+  /**
+   * Handle terminal message during linting
+   * // need to figure out how to import ISession and IMessage
+   * @param {any} sender [description]
+   * @param {any} msg    [description]
+   */
+  onLintMessage(sender:any, msg:any): void {
+    let message:string = msg.content[0];
+    console.log(message);
+  }
+
+  /**
+   * Run linter when active cell changes
+   */
+  onActiveCellChanged(): void {
     if (this.loaded && this.toggled) {
-        if (this.linting) {
-          console.log('linting');
-          let lint_cmd = this.lint_cmd('pylinttmp.py')
-            //         'pylint@python',
-//         '--msg-template=\'{line}:{column}:{msg_id}: {msg} ({symbol})\'',
-//         '--module-rgx=.*',  # don't check the module name
-//         '--reports=n',      # remove tables
-// '--persistent=n', # don't save the old score (no sense for temp)
-          this.term.session.send({type: 'stdin', content: ['which pylint\r']})
-
-    
-    // only run when on a code cell
-    let active_cell = this.tracker.activeCell;
-    if ( (active_cell !== null) && (active_cell.model.type === 'code') ){
-    //   console.log(active_cell.model);
-    //   console.log('active code cell changed');
-    //   let cell_text:string = active_cell.model.value.text;
-    //   console.log(cell_text);
-
-      // let current_mode: string = editor.getOption('mode');
-
-      // let editor: any = active_cell.editor;
-      // console.log(editor)
-      
-      if (this.loaded && this.toggled) {
-        if (this.linting) {
-          console.log('linting');
-        } else {
-          // console.log(current_mode);
-        }
-        // this.term.session.send({type: 'stdin', content: ['which pylint\r']})
-        // editor.setOption("mode", this.define_mode(current_mode));
+      if (!this.linting) {
+        this.lint();
       } else {
-        // not sure what this does yet
-        // let original_mode = (current_mode.match(/^spellcheck_/)) ? current_mode.substr(11) : current_mode
-        // editor.setOption("mode", original_mode);
+        console.log('already linting');
       }
     }
-  }
-  //         'pylint@python',
-//         '--msg-template=\'{line}:{column}:{msg_id}: {msg} ({symbol})\'',
-//         '--module-rgx=.*',  # don't check the module name
-//         '--reports=n',      # remove tables
-// '--persistent=n', # don't save the old score (no sense for temp)
-// 
-
-  define_mode = (original_mode_spec: string) => {
-    console.log(original_mode_spec)
-      // if (original_mode_spec.indexOf("spellcheck_") == 0){
-      //     return original_mode_spec;
-      // }
-      // var me = this;
-      // var new_mode_spec = 'spellcheck_' + original_mode_spec;
-      // CodeMirror.defineMode(new_mode_spec, (config:any) => {
-      //     var spellchecker_overlay = {
-      //         name: new_mode_spec,
-      //         token: function (stream:any, state:any) {
-      //             if (stream.eatWhile(me.rx_word_char)){
-      //         var word = stream.current().replace(/(^')|('$)/g, '');
-      //         if (!word.match(/^\d+$/) && (me.dictionary !== undefined) && !me.dictionary.check(word)) {
-      //             return 'spell-error';
-      //                 }
-      //             }
-                  
-      //             stream.eatWhile(me.rx_non_word_char);
-      //             return null;
-      //         }
-      //     };
-      //     return CodeMirror.overlayMode(
-      //         CodeMirror.getMode(config, original_mode_spec), spellchecker_overlay, true);
-      // });
-      // return new_mode_spec;
   }
 }
 
@@ -323,8 +256,8 @@ class PyLinter {
  */
 function activate(app: JupyterLab, tracker: INotebookTracker, palette: ICommandPalette, mainMenu: IMainMenu) {
   console.log('jupyterlab-pylint activated');
-  const pl = new PyLinter(app, tracker, palette, mainMenu);
-  console.log('pylinter Loaded', pl);
+  const pl = new Linter(app, tracker, palette, mainMenu);
+  console.log('linter load', pl)
 };
 
 
