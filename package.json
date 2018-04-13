@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@jupyterlab/application": "^0.15.0",
+    "@jupyterlab/codemirror": "^0.16.0",
     "@jupyterlab/mainmenu": "^0.4.4",
     "@jupyterlab/notebook": "^0.15.7",
     "@jupyterlab/terminal": "^0.15.4"

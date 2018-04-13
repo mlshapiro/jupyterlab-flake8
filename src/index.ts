@@ -18,6 +18,10 @@ import {
   Terminal
 } from '@jupyterlab/terminal';
 
+import {
+  editorServices, CodeMirrorEditor, Mode
+} from '@jupyterlab/codemirror';
+
 import '../style/index.css';
 
 /**
@@ -37,6 +41,9 @@ class Linter {
   linting: boolean = false;          // flag if the linter is processing
 
   // cache
+  cells: Array<string>;                // current nb cells
+  notebook: any;                // current nb cells
+  lookup: any;                        // lookup of line index
   nbtext: string = '';                // current nb text
 
   constructor(app: JupyterLab, tracker: INotebookTracker, palette: ICommandPalette, mainMenu: IMainMenu){
@@ -107,18 +114,17 @@ class Linter {
       if (message.includes('flake8')) {
         self.loaded = true;
         self.activate_flake8();
-        console.log('flake8 loaded');
       } else {
         alert('Flake8 was not found on the machine. \n\nInstall with `pip install flake8` or `conda install flake8`')
         self.loaded = false;
       }
 
       // remove this listener from the terminal session
-      self.term.session.messageReceived.disconnect(onTerminalMessage)
+      self.term.session.messageReceived.disconnect(onTerminalMessage, this)
     }
 
     // listen for stdout in onTerminalMessage and ask `which flake8`
-    this.term.session.messageReceived.connect(onTerminalMessage);
+    this.term.session.messageReceived.connect(onTerminalMessage, this);
     this.term.session.send({type: 'stdin', content: ['which flake8\r']})
   }
 
@@ -127,7 +133,7 @@ class Linter {
    */
   activate_flake8() {
     // listen for stdout in onLintMessage
-    this.term.session.messageReceived.connect(this.onLintMessage);
+    this.term.session.messageReceived.connect(this.onLintMessage, this);
   }
 
   /**
@@ -135,7 +141,7 @@ class Linter {
    */
   dispose_linter() {
     if (this.term) {
-      this.term.session.messageReceived.disconnect(this.onLintMessage); 
+      this.term.session.messageReceived.disconnect(this.onLintMessage, this); 
       this.term.dispose();
       console.log('disposed terminal');
     } else {
@@ -191,7 +197,9 @@ class Linter {
    * @return {string} [description]
    */
   lint_cmd(contents:string): string {
-    return `"${contents}" | flake8`
+    // let escaped = contents.replace(/(["\s'$`\\])/g,'\\$1');
+    let escaped = contents.replace('"', '\"');
+    return `echo "${escaped}" | flake8 -`
   }
 
 
@@ -199,29 +207,55 @@ class Linter {
    * [lint description]
    */
   lint() {
-    console.log('linting');
+    this.linting = true;  // no way to turn this off yet
 
     // load notebook
-    let notebook = this.tracker.currentWidget.notebook;
-    let pytext_array =  notebook.widgets
-      .filter(cell => {
-        return cell.model.type === 'code'
-      })
+    this.notebook = this.tracker.currentWidget.notebook;
+    this.cells = this.notebook.widgets
       .map(cell => {
         if (cell.model.type === 'code') {
           return cell.model.value.text;
         } else {
-          return undefined
+          return '';
         }
       });
 
-    let pytext = pytext_array.join('\n\n');
+    // create dictionary of lines
+    this.lookup = {};
+    let line = 1;
+    this.cells.map((cell, cell_idx) => {
+      if (cell) {
+        let lines = cell.split('\n');
+        for (let idx = 0; idx <= lines.length; idx++) {
+          this.lookup[line + idx] = {
+            cell: cell_idx,
+            line: idx
+          };
+          line += 1;
+        }
+      }
+    });
+
+    // join cells with text with two new lines
+    let pytext =  this.cells.filter(cell => {return cell}).join('\n\n');
+
+    // cache pytext on nbtext
     if (pytext !== this.nbtext) {
       this.nbtext = pytext;
+    } else {  // text has not changed
+      this.linting = false;
+      return;
     }
-    console.log(this.nbtext);
+    
+    // if text is empty - need to expand
+    if (this.nbtext === '' || this.nbtext === '\n\n') {
+      this.linting = false;
+      return;
+    }
 
-    let lint_cmd = this.lint_cmd(this.nbtext);
+    console.log(`nbtext: ${this.nbtext}`);
+
+    let lint_cmd = this.lint_cmd(pytext);
     this.term.session.send({type: 'stdin', content: [`${lint_cmd}\r`]})
   }
 
@@ -232,8 +266,43 @@ class Linter {
    * @param {any} msg    [description]
    */
   onLintMessage(sender:any, msg:any): void {
-    let message:string = msg.content[0];
-    console.log(message);
+    if (msg.content) {
+      let message:string = msg.content[0] as string;
+
+      // if message a is a reflection of the command, return
+      if (message.includes('| f l a k e 8')) {
+        return;
+      }
+
+      console.log(`stdout: ${message}`);
+
+      message.split('\n').forEach(m => {
+        if (m.includes('stdin:')) {
+          let idxs = m.split(':');
+          let line = parseInt(idxs[1]);
+          let row = parseInt(idxs[2]);
+          this.mark_line(line, row, idxs[3]);
+        }
+      });
+
+      this.linting = false;
+    }
+  }
+
+  /**
+   * mark the line of the cell
+   * @param {number} line    [description]
+   * @param {string} message [description]
+   */
+  mark_line(line:number, row:number, message:string) {
+    let loc = this.lookup[line];
+    let cell = this.cells[loc.cell];
+    let line_text = cell.split('\n')[loc.line];
+
+    console.log(`error ${message} in ${line_text}`);
+    console.log(this.notebook);  
+
+    // change the class of just this line and show the message on hover
   }
 
   /**
