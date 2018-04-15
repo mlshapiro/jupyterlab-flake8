@@ -27,7 +27,7 @@ For a development install (requires npm version 4 or later), do the following in
 ```bash
 $ npm install
 $ npm run build
-$ jupyter labextension install . --no-build  
+$ jupyter labextension link .
 ```
 
 To rebuild the package and the JupyterLab app:
@@ -44,6 +44,7 @@ $ jupyter lab --watch       # in the first terminal window
 $ npm run watch             # in a new terminal window
 ```
 
+Every time you add a dependency you much re-run `jupyter lab build`, `npm run watch`, then `jupyter lab --watch`
 
 ## Acknowledgment
 

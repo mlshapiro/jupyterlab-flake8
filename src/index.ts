@@ -18,9 +18,14 @@ import {
   Terminal
 } from '@jupyterlab/terminal';
 
-import {
-  editorServices, CodeMirrorEditor, Mode
-} from '@jupyterlab/codemirror';
+// TODO: figure out whats going on with code mirror
+import * as CodeMirror from 'codemirror';
+// import * as CodeMirror from '@jupyterlab/codemirror';
+
+// import {
+//   IEditorServices
+//   // , CodeEditor
+// } from '@jupyterlab/codeeditor';
 
 import '../style/index.css';
 
@@ -46,7 +51,10 @@ class Linter {
   lookup: any;                        // lookup of line index
   nbtext: string = '';                // current nb text
 
-  constructor(app: JupyterLab, tracker: INotebookTracker, palette: ICommandPalette, mainMenu: IMainMenu){
+  constructor(app: JupyterLab, 
+              tracker: INotebookTracker, 
+              palette: ICommandPalette, 
+              mainMenu: IMainMenu){
    
     this.app = app;
     this.mainMenu = mainMenu;
@@ -191,6 +199,19 @@ class Linter {
   }
 
   /**
+   * Run linter when active cell changes
+   */
+  onActiveCellChanged(): void {
+    if (this.loaded && this.toggled) {
+      if (!this.linting) {
+        this.lint();
+      } else {
+        console.log('already linting');
+      }
+    }
+  }
+
+  /**
    * Generate lint command
    * 
    * @param  {string} contents [description]
@@ -204,7 +225,7 @@ class Linter {
 
 
   /**
-   * [lint description]
+   * Run flake8 linting on notebook cells
    */
   lint() {
     this.linting = true;  // no way to turn this off yet
@@ -212,7 +233,7 @@ class Linter {
     // load notebook
     this.notebook = this.tracker.currentWidget.notebook;
     this.cells = this.notebook.widgets
-      .map(cell => {
+      .map((cell:any) => {
         if (cell.model.type === 'code') {
           return cell.model.value.text;
         } else {
@@ -261,7 +282,7 @@ class Linter {
 
   /**
    * Handle terminal message during linting
-   * // need to figure out how to import ISession and IMessage
+   * TODO: import ISession and IMessage types for sender and msg
    * @param {any} sender [description]
    * @param {any} msg    [description]
    */
@@ -300,30 +321,26 @@ class Linter {
     let line_text = cell.split('\n')[loc.line];
 
     console.log(`error ${message} in ${line_text}`);
-    console.log(this.notebook);  
 
-    // change the class of just this line and show the message on hover
+
+    // TODO: figure out how to mark a single line
+    
+    console.log(this.notebook);
+    (<any>window).notebook = this.notebook;
+    (<any>window).cell = this.notebook.widgets[loc.cell];
+    (<any>window).CodeMirror = CodeMirror
   }
 
-  /**
-   * Run linter when active cell changes
-   */
-  onActiveCellChanged(): void {
-    if (this.loaded && this.toggled) {
-      if (!this.linting) {
-        this.lint();
-      } else {
-        console.log('already linting');
-      }
-    }
-  }
 }
 
 
 /**
  * Activate extension
  */
-function activate(app: JupyterLab, tracker: INotebookTracker, palette: ICommandPalette, mainMenu: IMainMenu) {
+function activate(app: JupyterLab, 
+                  tracker: INotebookTracker, 
+                  palette: ICommandPalette, 
+                  mainMenu: IMainMenu) {
   console.log('jupyterlab-flake8 activated');
   const pl = new Linter(app, tracker, palette, mainMenu);
   console.log('linter load', pl)
