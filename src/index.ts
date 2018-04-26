@@ -46,8 +46,9 @@ class Linter {
   linting: boolean = false;          // flag if the linter is processing
 
   // cache
-  cells: Array<string>;                // current nb cells
-  notebook: any;                // current nb cells
+  cell_text: Array<string>;           // current nb cells
+  cells: Array<any>;                  // widgets from notebook
+  notebook: any;                      // current nb cells
   lookup: any;                        // lookup of line index
   nbtext: string = '';                // current nb text
 
@@ -225,6 +226,15 @@ class Linter {
 
 
   /**
+   * Determine if text is input
+   * @param {string} text [description]
+   */
+  private text_exists(text:string) {
+    return text;
+    // return text && text !== '\n' && text !== '\n\n';
+  }
+
+  /**
    * Run flake8 linting on notebook cells
    */
   lint() {
@@ -232,22 +242,34 @@ class Linter {
 
     // load notebook
     this.notebook = this.tracker.currentWidget.notebook;
-    this.cells = this.notebook.widgets
-      .map((cell:any) => {
-        if (cell.model.type === 'code') {
-          return cell.model.value.text;
+    this.cells = this.notebook.widgets;
+
+    // return text from each cell if its a code cell
+    this.cell_text = this.cells
+      .map((cell:any, cell_idx:number, cell_arr: any[]) => {
+        if (cell.model.type === 'code' && this.text_exists(cell.model.value.text)) {
+
+          // append \n\n if its not the last cell
+          if (cell_idx !== cell_arr.length - 1) {
+            return `${cell.model.value.text}\n\n`;
+          } else {
+            return cell.model.value.text;
+          }
+
         } else {
           return '';
         }
       });
+      // .filter((cell:any) => {return cell});
+
 
     // create dictionary of lines
     this.lookup = {};
     let line = 1;
-    this.cells.map((cell, cell_idx) => {
-      if (cell) {
+    this.cell_text.map((cell:any, cell_idx:number) => {
+      if (this.text_exists(cell)) {
         let lines = cell.split('\n');
-        for (let idx = 0; idx <= lines.length; idx++) {
+        for (let idx = 0; idx < lines.length-1; idx++) {
           this.lookup[line + idx] = {
             cell: cell_idx,
             line: idx
@@ -258,7 +280,7 @@ class Linter {
     });
 
     // join cells with text with two new lines
-    let pytext =  this.cells.filter(cell => {return cell}).join('\n\n');
+    let pytext =  this.cell_text.join('');
 
     // cache pytext on nbtext
     if (pytext !== this.nbtext) {
@@ -267,9 +289,9 @@ class Linter {
       this.linting = false;
       return;
     }
-    
-    // if text is empty - need to expand
-    if (this.nbtext === '' || this.nbtext === '\n\n') {
+
+    // TODO: handle if text is empty (any combination of '' and \n)
+    if (!this.text_exists(this.nbtext)) {
       this.linting = false;
       return;
     }
@@ -317,10 +339,18 @@ class Linter {
    */
   mark_line(line:number, row:number, message:string) {
     let loc = this.lookup[line];
-    let cell = this.cells[loc.cell];
+
+    if (!loc) {
+      console.log(`loc is undefined. line: ${line} lookup: ${JSON.stringify(this.lookup)}`);
+      return;
+    }
+
+    let cell = this.cell_text[loc.cell];
     let line_text = cell.split('\n')[loc.line];
 
     console.log(`error ${message} in ${line_text}`);
+    // const start = editor.getOffsetAt(selection.start);
+    // const end = editor.getOffsetAt(selection.end);
 
 
     // TODO: figure out how to mark a single line
