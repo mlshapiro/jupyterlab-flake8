@@ -266,15 +266,25 @@ class Linter {
     // create dictionary of lines
     this.lookup = {};
     let line = 1;
-    this.cell_text.map((cell:any, cell_idx:number) => {
+    this.cell_text.map((cell:any, cell_idx:number, cell_arr:any[]) => {
+
+      // if there is text in the cell,
       if (this.text_exists(cell)) {
         let lines = cell.split('\n');
         for (let idx = 0; idx < lines.length-1; idx++) {
-          this.lookup[line + idx] = {
+          this.lookup[line] = {
             cell: cell_idx,
             line: idx
           };
           line += 1;
+        }
+      }
+
+      // if its the last cell in the notebook and its empty
+      else if (cell_idx === cell_arr.length-1) {
+        this.lookup[line] = {
+          cell: cell_idx,
+          line: 0
         }
       }
     });
