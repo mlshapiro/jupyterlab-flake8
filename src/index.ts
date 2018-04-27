@@ -18,6 +18,14 @@ import {
   Terminal
 } from '@jupyterlab/terminal';
 
+import {
+  CodeMirrorEditor
+} from '@jupyterlab/codemirror';
+
+import {
+  Cell // ICellModel
+} from '@jupyterlab/cells';
+
 // TODO: figure out whats going on with code mirror
 import * as CodeMirror from 'codemirror';
 // import * as CodeMirror from '@jupyterlab/codemirror';
@@ -40,8 +48,9 @@ class Linter {
   term: Terminal;
 
   // Default Options
-  loaded: boolean = false;          // if flake8 is available
-  toggled: boolean = true;          // turn on.off linter
+  loaded: boolean = false;                // if flake8 is available
+  toggled: boolean = true;                // turn on.off linter
+  highlight_color: string = 'yellow';     // color of highlights
 
   linting: boolean = false;          // flag if the linter is processing
 
@@ -51,6 +60,8 @@ class Linter {
   notebook: any;                      // current nb cells
   lookup: any;                        // lookup of line index
   nbtext: string = '';                // current nb text
+  marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
+  bookmarks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
 
   constructor(app: JupyterLab, 
               tracker: INotebookTracker, 
@@ -235,6 +246,18 @@ class Linter {
   }
 
   /**
+   * Clear all current marks from code mirror
+   */
+  private clear_marks() {
+    this.marks.forEach((mark:CodeMirror.TextMarker) => {
+      mark.clear();
+    });
+
+    this.bookmarks.forEach((bookmark:CodeMirror.TextMarker) => {
+      bookmark.clear();
+    });
+  }
+  /**
    * Run flake8 linting on notebook cells
    */
   lint() {
@@ -306,8 +329,11 @@ class Linter {
       return;
     }
 
-    console.log(`nbtext: ${this.nbtext}`);
+    // clean current marks
+    this.clear_marks();
 
+    // get lint command to run in terminal and send to terminal
+    console.log(`nbtext: ${this.nbtext}`);
     let lint_cmd = this.lint_cmd(pytext);
     this.term.session.send({type: 'stdin', content: [`${lint_cmd}\r`]})
   }
@@ -333,8 +359,8 @@ class Linter {
         if (m.includes('stdin:')) {
           let idxs = m.split(':');
           let line = parseInt(idxs[1]);
-          let row = parseInt(idxs[2]);
-          this.mark_line(line, row, idxs[3]);
+          let ch = parseInt(idxs[2]);
+          this.mark_line(line, ch, idxs[3]);
         }
       });
 
@@ -342,30 +368,72 @@ class Linter {
     }
   }
 
+
   /**
    * mark the line of the cell
    * @param {number} line    [description]
+   * @param {number} ch      [description]
    * @param {string} message [description]
    */
-  mark_line(line:number, row:number, message:string) {
+  mark_line(line:number, ch:number, message:string) {
     let loc = this.lookup[line];
+    ch = ch - 1;  // make character 0 indexed
 
     if (!loc) {
       console.log(`loc is undefined. line: ${line} lookup: ${JSON.stringify(this.lookup)}`);
       return;
     }
 
-    let cell = this.cell_text[loc.cell];
-    let line_text = cell.split('\n')[loc.line];
+    // let cell_text = this.cell_text[loc.cell];
+    // let line_text = cell_text.split('\n')[loc.line];
+    // console.log(`error ${message} in ${line_text}`);
+   
+    let from = {line: loc.line, ch: ch};
+    let to = {line: loc.line, ch: ch+1};
 
-    console.log(`error ${message} in ${line_text}`);
-    // const start = editor.getOffsetAt(selection.start);
-    // const end = editor.getOffsetAt(selection.end);
+    // get cell instance
+    let cell:Cell = this.notebook.widgets[loc.cell];
+
+    // get cell's code mirror editor
+    let editor:CodeMirrorEditor = cell.inputArea.editorWidget.editor as CodeMirrorEditor;
+    let doc = editor.doc;
 
 
-    // TODO: figure out how to mark a single line
+    // let lint_alert = document.createElement('span');
+    // let lint_message = document.createTextNode(message);
+    // lint_alert.appendChild(lint_message);
+    // lint_alert.className = 'jupyterlab-flake8-lint-message';
+    // // lint_alert.insertAdjacentHTML('afterend', `<span>${message}</span>`);
+    // // lint_alert.setAttribute('id', `lintmessage${line}${ch}`);
     
-    console.log(this.notebook);
+
+
+    // // <p>Hover here<span>some text here ?</span></p>
+    // // let selected_char = 
+    // let selected_char_node = document.createElement('span');
+    // lint_alert.className = 'jupyterlab-flake8-char';
+    // let selected_char_text = document.createTextNode(doc.getRange(from, to));
+    // selected_char_node.appendChild(selected_char_text);
+    // selected_char_node.appendChild(lint_alert);
+
+    // CodeMirror.addWidget .addWidget(pos: {line, ch}, node: Element, scrollIntoView: boolean)
+
+    // this.bookmarks.push(doc.setBookmark({line: loc.lin, ch: ch}, {
+    //   widget: lint_alert
+    // }));
+
+
+    // mark the text
+    this.marks.push(doc.markText(from, to,
+      {
+        // replacedWith: selected_char_node,
+        css: `
+          background-color: ${this.highlight_color}
+        `   // background color
+        // css: `background-color: ${this.highlight_color}`   // TODO: add other css options
+      }));
+
+
     (<any>window).notebook = this.notebook;
     (<any>window).cell = this.notebook.widgets[loc.cell];
     (<any>window).CodeMirror = CodeMirror
