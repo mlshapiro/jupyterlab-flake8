@@ -2,7 +2,7 @@
 
 Jupyterlab extension for flake8
 
-> This is currently working in a a very limited way.
+> This is currently working, but its still pretty basic. See [TODO](#todo) for a few items to implement.
 > This extension will not work if you can't load a terminal in jupyterlab (i.e. on some windows machines)
 
 <img src="example.png" />
