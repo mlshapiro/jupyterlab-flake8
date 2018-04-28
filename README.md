@@ -1,12 +1,21 @@
-> This is still in development
-
 # Jupyterlab-flake8
 
 Jupyterlab extension for flake8
 
+> This is currently working in a a very limited way.
+> This extension will not work if you can't load a terminal in jupyterlab (i.e. on some windows machines)
+
+<img src="example.png" />
+
 ## Prerequisites
 
 - JupyterLab
+- [`flake8`](http://flake8.pycqa.org/en/latest/) python package
+
+```bash
+$ conda install flake8   # if using conda
+$ pip install flake8     # if using pip
+```
 
 ## Installation
 

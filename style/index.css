@@ -1,12 +1,9 @@
 
-.jupyterlab-flake8-char { 
 
-}
-
-span .jupyterlab-flake8-lint-message { 
+.jupyterlab-flake8-lint-message span { 
     display: none 
 }
 
-span:hover .jupyterlab-flake8-lint-message { 
+.jupyterlab-flake8-lint-message span:hover { 
     display: block
 }

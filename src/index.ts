@@ -28,12 +28,6 @@ import {
 
 // TODO: figure out whats going on with code mirror
 import * as CodeMirror from 'codemirror';
-// import * as CodeMirror from '@jupyterlab/codemirror';
-
-// import {
-//   IEditorServices
-//   // , CodeEditor
-// } from '@jupyterlab/codeeditor';
 
 import '../style/index.css';
 
@@ -51,7 +45,9 @@ class Linter {
   loaded: boolean = false;                // if flake8 is available
   toggled: boolean = true;                // turn on.off linter
   highlight_color: string = 'yellow';     // color of highlights
+  show_error_messages: boolean = true;            // show error message
 
+  // flags
   linting: boolean = false;          // flag if the linter is processing
 
   // cache
@@ -61,7 +57,7 @@ class Linter {
   lookup: any;                        // lookup of line index
   nbtext: string = '';                // current nb text
   marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
-  bookmarks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
+  bookmarks: Array<any> = [];         // text marker objects currently active
 
   constructor(app: JupyterLab, 
               tracker: INotebookTracker, 
@@ -92,7 +88,7 @@ class Linter {
 
     // Bail if there are no terminals available.
     if (!this.app.serviceManager.terminals.isAvailable()) {
-      console.log('Disabling jupyterlab-flake8 plugin because it cant access terminal');
+      // console.log('Disabling jupyterlab-flake8 plugin because it cant access terminal');
       this.loaded = false;
       this.toggled = false;
       return;
@@ -101,7 +97,6 @@ class Linter {
     this.term = new Terminal();
     try {
       this.term.session = await this.app.serviceManager.terminals.startNew();
-      console.log('loaded terminal session');
 
       // wait 2 seconds for terminal to load and get initial commands out of its system
       setTimeout(() => {
@@ -135,7 +130,7 @@ class Linter {
         self.loaded = true;
         self.activate_flake8();
       } else {
-        alert('Flake8 was not found on the machine. \n\nInstall with `pip install flake8` or `conda install flake8`')
+        alert('Flake8 was not found in this python distribution. \n\nInstall with `pip install flake8` or `conda install flake8` and reload the jupyterlab window')
         self.loaded = false;
       }
 
@@ -160,12 +155,11 @@ class Linter {
    * Dispose of the terminal used to lint
    */
   dispose_linter() {
+    this.clear_marks();
+
     if (this.term) {
       this.term.session.messageReceived.disconnect(this.onLintMessage, this); 
       this.term.dispose();
-      console.log('disposed terminal');
-    } else {
-      console.log('no terminal to dispose');
     }
   }
 
@@ -183,6 +177,17 @@ class Linter {
   }
 
   /**
+   * Turn error messages on/off
+   */
+  toggle_error_messages(){
+    this.show_error_messages = !this.show_error_messages;
+
+    if (!this.show_error_messages) {
+      this.clear_error_messages();
+    }
+  }
+
+  /**
    * Create menu / command items
    */
   add_commands(){
@@ -191,29 +196,37 @@ class Linter {
     // define all commands
     let commands:any = {
       'flake8:toggle': {
-        label: "Toggle flake8",
+        label: "Toggle Flake8",
         isEnabled: () => { return this.loaded},
         isToggled: () => { return this.toggled},
         execute: () => {
           this.toggle_linter();
         } 
-      }
+      },
+      'flake8:show_error_messages': {
+        label: "Show Flake8 Error Messages",
+        isEnabled: () => { return this.loaded},
+        isToggled: () => { return this.show_error_messages},
+        execute: () => {
+          this.toggle_error_messages();
+        } 
+      },
     };
 
     // add commands to menus and palette
     for (let key in commands) {
       this.app.commands.addCommand(key, commands[key]);
       this.palette.addItem({command: key, category: category} );
-      this.mainMenu.viewMenu.addGroup([
-        { command: key }
-      ], 30);      
     }
+
+    // add to view Menu
+    this.mainMenu.viewMenu.addGroup(Object.keys(commands).map(key => {return {command: key} }), 30);
   }
 
   /**
    * Run linter when active cell changes
    */
-  onActiveCellChanged(): void {
+  private onActiveCellChanged(): void {
     if (this.loaded && this.toggled) {
       if (!this.linting) {
         this.lint();
@@ -226,15 +239,13 @@ class Linter {
   /**
    * Generate lint command
    * 
-   * @param  {string} contents [description]
+   * @param  {string} contents - contents of the notebook ready to be linted
    * @return {string} [description]
    */
   lint_cmd(contents:string): string {
-    // let escaped = contents.replace(/(["\s'$`\\])/g,'\\$1');
     let escaped = contents.replace('"', '\"');
     return `echo "${escaped}" | flake8 -`
   }
-
 
   /**
    * Determine if text is input
@@ -253,10 +264,20 @@ class Linter {
       mark.clear();
     });
 
-    this.bookmarks.forEach((bookmark:CodeMirror.TextMarker) => {
+    // clear error messages as well
+    this.clear_error_messages();
+  }
+
+  /**
+   * Clear all error messages
+   */
+  private clear_error_messages() {
+    this.bookmarks.forEach((bookmark:any) => {
       bookmark.clear();
     });
   }
+
+
   /**
    * Run flake8 linting on notebook cells
    */
@@ -283,8 +304,6 @@ class Linter {
           return '';
         }
       });
-      // .filter((cell:any) => {return cell});
-
 
     // create dictionary of lines
     this.lookup = {};
@@ -333,7 +352,7 @@ class Linter {
     this.clear_marks();
 
     // get lint command to run in terminal and send to terminal
-    console.log(`nbtext: ${this.nbtext}`);
+    // console.log(`nbtext: ${this.nbtext}`);
     let lint_cmd = this.lint_cmd(pytext);
     this.term.session.send({type: 'stdin', content: [`${lint_cmd}\r`]})
   }
@@ -349,11 +368,19 @@ class Linter {
       let message:string = msg.content[0] as string;
 
       // if message a is a reflection of the command, return
-      if (message.includes('| f l a k e 8')) {
+      if (message.indexOf('| f l a k e 8') > -1) {
         return;
       }
 
-      console.log(`stdout: ${message}`);
+      // if message a is a reflection of the command, return
+      if (message.indexOf('Traceback') > -1) {
+        alert('Flake8 was not found in this python distribution. \n\nInstall with `pip install flake8` or `conda install flake8` and reload the jupyterlab window');
+        this.loaded = false;
+        return;
+      }
+
+      // debug stdout:
+      // console.log(`stdout: ${message}`);
 
       message.split('\n').forEach(m => {
         if (m.includes('stdin:')) {
@@ -371,9 +398,9 @@ class Linter {
 
   /**
    * mark the line of the cell
-   * @param {number} line    [description]
-   * @param {number} ch      [description]
-   * @param {string} message [description]
+   * @param {number} line    the line # returned by flake8
+   * @param {number} ch      the character # returned by flake 8
+   * @param {string} message the flak8 error message
    */
   mark_line(line:number, ch:number, message:string) {
     let loc = this.lookup[line];
@@ -383,10 +410,6 @@ class Linter {
       console.log(`loc is undefined. line: ${line} lookup: ${JSON.stringify(this.lookup)}`);
       return;
     }
-
-    // let cell_text = this.cell_text[loc.cell];
-    // let line_text = cell_text.split('\n')[loc.line];
-    // console.log(`error ${message} in ${line_text}`);
    
     let from = {line: loc.line, ch: ch};
     let to = {line: loc.line, ch: ch+1};
@@ -398,45 +421,41 @@ class Linter {
     let editor:CodeMirrorEditor = cell.inputArea.editorWidget.editor as CodeMirrorEditor;
     let doc = editor.doc;
 
-
-    // let lint_alert = document.createElement('span');
-    // let lint_message = document.createTextNode(message);
-    // lint_alert.appendChild(lint_message);
-    // lint_alert.className = 'jupyterlab-flake8-lint-message';
-    // // lint_alert.insertAdjacentHTML('afterend', `<span>${message}</span>`);
-    // // lint_alert.setAttribute('id', `lintmessage${line}${ch}`);
-    
-
-
-    // // <p>Hover here<span>some text here ?</span></p>
-    // // let selected_char = 
-    // let selected_char_node = document.createElement('span');
-    // lint_alert.className = 'jupyterlab-flake8-char';
-    // let selected_char_text = document.createTextNode(doc.getRange(from, to));
-    // selected_char_node.appendChild(selected_char_text);
-    // selected_char_node.appendChild(lint_alert);
-
-    // CodeMirror.addWidget .addWidget(pos: {line, ch}, node: Element, scrollIntoView: boolean)
-
-    // this.bookmarks.push(doc.setBookmark({line: loc.lin, ch: ch}, {
-    //   widget: lint_alert
-    // }));
-
-
     // mark the text
     this.marks.push(doc.markText(from, to,
       {
         // replacedWith: selected_char_node,
+        className: 'jupyterlab-flake8-lint-message',
         css: `
           background-color: ${this.highlight_color}
-        `   // background color
-        // css: `background-color: ${this.highlight_color}`   // TODO: add other css options
+        `
       }));
 
+    // TODO: show this is a hover-over bubble
+    // create error alert node
+    if (this.show_error_messages) {
+      let lint_alert = document.createElement('span');
+      let lint_message = document.createTextNode(`------ ${message}`);
+      lint_alert.appendChild(lint_message);
+      lint_alert.className = 'jupyterlab-flake8-lint-message';  
 
-    (<any>window).notebook = this.notebook;
-    (<any>window).cell = this.notebook.widgets[loc.cell];
-    (<any>window).CodeMirror = CodeMirror
+      // add error alert node to the 'to' location
+      this.bookmarks.push(
+        (<any>doc).addLineWidget(loc.line, lint_alert)
+      );
+    }
+
+    // this.bookmarks.push(doc.setBookmark({line: loc.lin, ch: ch}, {
+    //   widget: lint_alert
+    // }));
+    // 
+
+    // window debugging
+    // (<any>window).editor = editor;
+    // (<any>window).doc = doc;
+    // (<any>window).notebook = this.notebook;
+    // (<any>window).cell = this.notebook.widgets[loc.cell];
+    // (<any>window).CodeMirror = CodeMirror
   }
 
 }
