@@ -32,9 +32,9 @@ Currently only has two options in the view menu (or command palette):
 - Show Error Messages
     + Shows Flake8 Error messages under the line in the notebook
 
-<img src="options.png" />
+<img src="options.png" style="width: 30%;" />
 
-<img src="commands.png" />
+<img src="commands.png" style="width:30%; " />
 
 
 ## Development
