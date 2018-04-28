@@ -25,6 +25,8 @@ jupyter labextension install jupyterlab-flake8
 
 ## Usage
 
+When the extension is installed, the linter will automatically be toggled on and configured to show error messages.  The linter will run when you change cells.
+
 Currently only has two options in the view menu (or command palette):
 
 - Toggle Flake8
@@ -32,10 +34,17 @@ Currently only has two options in the view menu (or command palette):
 - Show Error Messages
     + Shows Flake8 Error messages under the line in the notebook
 
-<img src="options.png" style="width: 30%;" />
+<img src="options.png" width="300" /> <img src="commands.png" width="300" />
 
-<img src="commands.png" style="width:30%; " />
+## TODO
 
+Please help contribute if you have time and think this is useful. I will continue to improve as I have time:
+
+- show error messages on hover rather than in a new line
+- run linter more frequently (i.e. on a new line, on save)
+  - make frequency a configurable option
+- document how to configure flake8
+- extend to run in the text editor
 
 ## Development
 
