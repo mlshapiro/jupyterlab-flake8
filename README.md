@@ -23,6 +23,20 @@ $ pip install flake8     # if using pip
 jupyter labextension install jupyterlab-flake8
 ```
 
+## Usage
+
+Currently only has two options in the view menu (or command palette):
+
+- Toggle Flake8
+    + Turns on or off linting in the notebook
+- Show Error Messages
+    + Shows Flake8 Error messages under the line in the notebook
+
+<img src="options.png" />
+
+<img src="commands.png" />
+
+
 ## Development
 
 It is advisable to use a seperate conda environment for development:
