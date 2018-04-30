@@ -3,32 +3,33 @@ import {
 } from '@jupyterlab/application';
 
 import {
-  INotebookTracker
-} from '@jupyterlab/notebook';
-
-import {
-  IMainMenu
-} from '@jupyterlab/mainmenu';
-
-import {
   ICommandPalette
 } from '@jupyterlab/apputils';
-
-import {
-  Terminal
-} from '@jupyterlab/terminal';
 
 import {
   CodeMirrorEditor
 } from '@jupyterlab/codemirror';
 
 import {
+  IMainMenu
+} from '@jupyterlab/mainmenu';
+
+import {
+  INotebookTracker
+} from '@jupyterlab/notebook';
+
+import {
+  Terminal
+} from '@jupyterlab/terminal';
+
+import {
   Cell // ICellModel
 } from '@jupyterlab/cells';
 
-// TODO: figure out whats going on with code mirror
+// TODO: why import CodeMirror from here?
 import * as CodeMirror from 'codemirror';
 
+// CSS
 import '../style/index.css';
 
 /**
@@ -118,7 +119,6 @@ class Linter {
     // need to figure out how to import ISession and IMessage
     function onTerminalMessage(sender:any, msg:any): void {
       let message:string = msg.content[0];
-      console.log(message);
 
       // return if its just a message reflection
       if (message.includes('which flake8')) {
@@ -231,7 +231,7 @@ class Linter {
       if (!this.linting) {
         this.lint();
       } else {
-        console.log('already linting');
+        // console.log('already linting');
       }
     }
   }
@@ -407,7 +407,6 @@ class Linter {
     ch = ch - 1;  // make character 0 indexed
 
     if (!loc) {
-      console.log(`loc is undefined. line: ${line} lookup: ${JSON.stringify(this.lookup)}`);
       return;
     }
    
@@ -468,9 +467,9 @@ function activate(app: JupyterLab,
                   tracker: INotebookTracker, 
                   palette: ICommandPalette, 
                   mainMenu: IMainMenu) {
-  console.log('jupyterlab-flake8 activated');
-  const pl = new Linter(app, tracker, palette, mainMenu);
-  console.log('linter load', pl)
+  // console.log('jupyterlab-flake8 activated');
+  new Linter(app, tracker, palette, mainMenu);
+  // console.log('linter load', pl)
 };
 
 

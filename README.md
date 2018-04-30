@@ -10,6 +10,7 @@ Jupyterlab extension for flake8
 ## Prerequisites
 
 - JupyterLab
+    + Tested up to v0.32
 - [`flake8`](http://flake8.pycqa.org/en/latest/) python package
 
 ```bash
@@ -59,7 +60,8 @@ For a development install (requires npm version 4 or later), do the following in
 ```bash
 $ npm install
 $ npm run build
-$ jupyter labextension link .
+$ jupyter labextension install              # install and rebuild jupyterlab
+$ jupyter labextension install --no-build   # install, but don't build (built during `jupyter lab --watch`)
 ```
 
 To rebuild the package and the JupyterLab app:
@@ -76,7 +78,7 @@ $ jupyter lab --watch       # in the first terminal window
 $ npm run watch             # in a new terminal window
 ```
 
-Every time you add a dependency you much re-run `jupyter lab build`, `npm run watch`, then `jupyter lab --watch`
+Every time you add a dependency you much re-run `npm run watch`, then `jupyter lab --watch`
 
 ## Acknowledgment
 
