@@ -9,8 +9,12 @@ Jupyterlab extension for flake8
 
 ## Prerequisites
 
-- JupyterLab
-    + Tested up to v0.32
+- JupyterLab >= 0.32
+
+```bash
+$ conda install -c conda-forge jupyterlab
+```
+
 - [`flake8`](http://flake8.pycqa.org/en/latest/) python package
 
 ```bash
