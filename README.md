@@ -1,9 +1,8 @@
 # Jupyterlab-flake8
 
-Jupyterlab extension for flake8
+Jupyterlab extension to lint python notebook. Uses [`flake8`](http://flake8.pycqa.org/en/latest/) python library for linting.
 
-> This is currently working, but its still pretty basic. See [TODO](#todo) for a few items to implement.
-> This extension will not work if you can't load a terminal in jupyterlab (i.e. on some windows machines)
+> Note: This extension will only work if you can load the terminal in jupyterlab. This terminal currently does [not work on Windows 7](https://github.com/jupyterlab/jupyterlab/issues/3647)
 
 <img src="example.png" />
 
@@ -41,6 +40,31 @@ Currently only has two options in the view menu (or command palette):
 
 <img src="options.png" width="300" /> <img src="commands.png" width="300" />
 
+## Configure
+
+The notebook linter is configured the same way as the `flake8` command line tool. See the [`flake8` project configuration documentation](http://flake8.pycqa.org/en/latest/user/configuration.html#project-configuration) for all options.
+
+As an example, if you want to ignore certain warnings:
+
+- Create `.flake8` file in the same directory as the notebook
+- Specify a `[flake8]` block in a valid INI format
+
+```ini
+[flake8]
+ignore = 
+    F812,   # list comprehension redefines
+    H101    # Use TODO(NAME)
+exclude =
+    .git,
+    __pycache__,
+    docs/source/conf.py,
+    dist
+max-complexity = 10
+```
+
+The `flake8` linter will then use this configuration in the notebook.
+
+
 ## TODO
 
 Please help contribute if you have time and think this is useful. I will continue to improve as I have time:
@@ -48,7 +72,6 @@ Please help contribute if you have time and think this is useful. I will continu
 - show error messages on hover rather than in a new line
 - run linter more frequently (i.e. on a new line, on save)
   - make frequency a configurable option
-- document how to configure flake8
 - extend to run in the text editor
 
 ## Development
