@@ -2,7 +2,7 @@
 
 Jupyterlab extension to lint python notebook. Uses [`flake8`](http://flake8.pycqa.org/en/latest/) python library for linting.
 
-> Note: This extension will only work if you can load the terminal in jupyterlab. This terminal currently does [not work on Windows 7](https://github.com/jupyterlab/jupyterlab/issues/3647)
+> Note: This extension will only work if you can load the terminal in jupyterlab. The terminal does [not currently work on Windows 7](https://github.com/jupyterlab/jupyterlab/issues/3647)
 
 <img src="example.png" />
 
