@@ -4,7 +4,7 @@ Jupyterlab extension to lint python notebook. Uses [`flake8`](http://flake8.pycq
 
 > Note: This extension will only work if you can load the terminal in jupyterlab. The terminal does [not currently work on Windows 7](https://github.com/jupyterlab/jupyterlab/issues/3647)
 
-<img src="example.png" />
+<img src="img/example.png" />
 
 ## Prerequisites
 
@@ -38,7 +38,7 @@ Currently only has two options in the view menu (or command palette):
 - Show Error Messages
     + Shows Flake8 Error messages under the line in the notebook
 
-<img src="options.png" width="300" /> <img src="commands.png" width="300" />
+<img src="img/options.png" width="300" /> <img src="img/commands.png" width="300" />
 
 ## Configure
 
