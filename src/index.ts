@@ -121,16 +121,17 @@ class Linter {
       let message:string = msg.content[0];
 
       // return if its just a message reflection
-      if (message.includes('which flake8')) {
+      if (message.indexOf('which flake8') > -1) {
         return;
       }
 
       // if message includes flake8, then `which flake8` was successful and we can say the library is loaded
-      if (message.includes('flake8')) {
+      if (message.indexOf('flake8') > -1) {
         self.loaded = true;
         self.activate_flake8();
       } else {
         alert('Flake8 was not found in this python distribution. \n\nInstall with `pip install flake8` or `conda install flake8` and reload the jupyterlab window')
+        console.log(`jupyterlab-flake8: ${message}`);
         self.loaded = false;
       }
 
