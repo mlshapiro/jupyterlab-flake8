@@ -31,13 +31,15 @@ jupyter labextension install jupyterlab-flake8
 
 When the extension is installed, the linter will automatically be toggled on and configured to show error messages.  The linter will run when you change cells.
 
-Currently only has two options in the view menu (or command palette):
+Options in the view menu (or command palette):
 
-- Toggle Flake8
+- Enable Flake8
     + Turns on or off linting in the notebook
 - Show Error Messages
     + Shows Flake8 Error messages under the line in the notebook
-
+- Output Flake8 Browser Console Logs
+    + Turn on browser console logs for debugging the extension
+    
 <img src="img/options.png" width="300" /> <img src="img/commands.png" width="300" />
 
 ## Configure
