@@ -45,6 +45,7 @@ class Linter {
   // Default Options
   loaded: boolean = false;                // if flake8 is available
   toggled: boolean = true;                // turn on.off linter
+  logging: boolean = false;                // turn on.off linter
   highlight_color: string = 'yellow';     // color of highlights
   show_error_messages: boolean = true;            // show error message
 
@@ -89,7 +90,7 @@ class Linter {
 
     // Bail if there are no terminals available.
     if (!this.app.serviceManager.terminals.isAvailable()) {
-      // console.log('Disabling jupyterlab-flake8 plugin because it cant access terminal');
+      this.log('Disabling jupyterlab-flake8 plugin because it cant access terminal');
       this.loaded = false;
       this.toggled = false;
       return;
@@ -101,8 +102,9 @@ class Linter {
 
       // wait 2 seconds for terminal to load and get initial commands out of its system
       setTimeout(() => {
-        this.check_flake8();
-      }, 2000)
+        this.loaded = true;
+        this.activate_flake8();
+      }, 4000)
     }
     catch(e) {
       this.term.dispose();
@@ -112,6 +114,7 @@ class Linter {
 
   /**
    * Check to see if flake8 is available on the machine
+   * @deprecated for now
    */
   check_flake8() {
     let self = this;
@@ -119,6 +122,7 @@ class Linter {
     // need to figure out how to import ISession and IMessage
     function onTerminalMessage(sender:any, msg:any): void {
       let message:string = msg.content[0];
+      this.log(`terminal message: ${message}`);
 
       // return if its just a message reflection
       if (message.indexOf('which flake8') > -1) {
@@ -131,7 +135,6 @@ class Linter {
         self.activate_flake8();
       } else {
         alert('Flake8 was not found in this python distribution. \n\nInstall with `pip install flake8` or `conda install flake8` and reload the jupyterlab window')
-        console.log(`jupyterlab-flake8: ${message}`);
         self.loaded = false;
       }
 
@@ -156,6 +159,7 @@ class Linter {
    * Dispose of the terminal used to lint
    */
   dispose_linter() {
+    this.log(`disposing flake8 and terminal`);
     this.clear_marks();
 
     if (this.term) {
@@ -197,7 +201,7 @@ class Linter {
     // define all commands
     let commands:any = {
       'flake8:toggle': {
-        label: "Toggle Flake8",
+        label: "Enable Flake8",
         isEnabled: () => { return this.loaded},
         isToggled: () => { return this.toggled},
         execute: () => {
@@ -210,6 +214,14 @@ class Linter {
         isToggled: () => { return this.show_error_messages},
         execute: () => {
           this.toggle_error_messages();
+        } 
+      },      
+      'flake8:show_browser_logs': {
+        label: "Output Flake8 Browser Console Logs",
+        isEnabled: () => { return this.loaded},
+        isToggled: () => { return this.logging},
+        execute: () => {
+          this.logging = !this.logging;
         } 
       },
     };
@@ -232,7 +244,7 @@ class Linter {
       if (!this.linting) {
         this.lint();
       } else {
-        // console.log('already linting');
+        this.log('flake8 is already running onActiveCellChanged');
       }
     }
   }
@@ -339,12 +351,14 @@ class Linter {
     if (pytext !== this.nbtext) {
       this.nbtext = pytext;
     } else {  // text has not changed
+      this.log('notebook text unchanged');
       this.linting = false;
       return;
     }
 
     // TODO: handle if text is empty (any combination of '' and \n)
     if (!this.text_exists(this.nbtext)) {
+      this.log('notebook text empty');
       this.linting = false;
       return;
     }
@@ -353,7 +367,6 @@ class Linter {
     this.clear_marks();
 
     // get lint command to run in terminal and send to terminal
-    // console.log(`nbtext: ${this.nbtext}`);
     let lint_cmd = this.lint_cmd(pytext);
     this.term.session.send({type: 'stdin', content: [`${lint_cmd}\r`]})
   }
@@ -367,21 +380,21 @@ class Linter {
   onLintMessage(sender:any, msg:any): void {
     if (msg.content) {
       let message:string = msg.content[0] as string;
-
-      // if message a is a reflection of the command, return
-      if (message.indexOf('| f l a k e 8') > -1) {
-        return;
-      }
+      this.log(`terminal message: ${message}`);
 
       // if message a is a reflection of the command, return
       if (message.indexOf('Traceback') > -1) {
-        alert('Flake8 was not found in this python distribution. \n\nInstall with `pip install flake8` or `conda install flake8` and reload the jupyterlab window');
-        this.loaded = false;
+        alert(`Flake8 encountered a python error. Make sure flake8 is installed and on the system path. \n\nTraceback: ${message}`);
+        this.linting = false;
         return;
       }
 
-      // debug stdout:
-      // console.log(`stdout: ${message}`);
+      // if message a is a reflection of the command, return
+      if (message.indexOf('command not found') > -1 ) {
+        alert(`Flake8 was not found in this python distribution. \n\nInstall with 'pip install flake8' or 'conda install flake8' and reload the jupyterlab window`);
+        this.linting = false;
+        return;
+      }
 
       message.split('\n').forEach(m => {
         if (m.includes('stdin:')) {
@@ -458,6 +471,27 @@ class Linter {
     // (<any>window).CodeMirror = CodeMirror
   }
 
+  /**
+   * Show browser logs
+   * @param {any} msg [description]
+   */
+  log(msg:any) {
+
+    // return if logging is not enabled
+    if (!this.logging) {
+      return;
+    }
+
+    // convert object messages to strings
+    if (typeof(msg) === 'object') {
+      msg = JSON.stringify(msg);
+    }
+
+    // prepend name
+    let output = `jupyterlab-flake8: ${msg}`;
+    console.log(output);
+  }
+
 }
 
 
@@ -468,9 +502,9 @@ function activate(app: JupyterLab,
                   tracker: INotebookTracker, 
                   palette: ICommandPalette, 
                   mainMenu: IMainMenu) {
-  // console.log('jupyterlab-flake8 activated');
+
   new Linter(app, tracker, palette, mainMenu);
-  // console.log('linter load', pl)
+
 };
 
 
