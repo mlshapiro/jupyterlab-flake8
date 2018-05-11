@@ -100,7 +100,7 @@ class Linter {
     try {
       this.term.session = await this.app.serviceManager.terminals.startNew();
 
-      // wait 2 seconds for terminal to load and get initial commands out of its system
+      // wait 4 seconds for terminal to load and get initial commands out of its system
       setTimeout(() => {
         this.loaded = true;
         this.activate_flake8();
@@ -256,7 +256,7 @@ class Linter {
    * @return {string} [description]
    */
   lint_cmd(contents:string): string {
-    let escaped = contents.replace(/([!{}"'$`\\])/g,'\\$1');
+    let escaped = contents.replace(/["`]/g,'\\$&');
     escaped = escaped.replace('\r','');  // replace carriage returns
     return `(echo "${escaped}" | flake8 --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`
   }
