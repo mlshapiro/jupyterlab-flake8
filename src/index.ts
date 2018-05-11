@@ -256,8 +256,9 @@ class Linter {
    * @return {string} [description]
    */
   lint_cmd(contents:string): string {
-    let escaped = contents.replace('"', '\"');
-    return `echo "${escaped}" | flake8 -`
+    let escaped = contents.replace(/([!{}"'$`\\])/g,'\\$1');
+    escaped = escaped.replace('\r','');  // replace carriage returns
+    return `(echo "${escaped}" | flake8 --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`
   }
 
   /**
@@ -300,6 +301,8 @@ class Linter {
     // load notebook
     this.notebook = this.tracker.currentWidget.notebook;
     this.cells = this.notebook.widgets;
+    
+    this.log('getting notebook text');
 
     // return text from each cell if its a code cell
     this.cell_text = this.cells
@@ -367,7 +370,9 @@ class Linter {
     this.clear_marks();
 
     // get lint command to run in terminal and send to terminal
+    this.log('preparing lint command');
     let lint_cmd = this.lint_cmd(pytext);
+    this.log('sending lint command');
     this.term.session.send({type: 'stdin', content: [`${lint_cmd}\r`]})
   }
 
@@ -405,7 +410,10 @@ class Linter {
         }
       });
 
-      this.linting = false;
+      if (message.indexOf('jupyterlab-flake8 finished linting') > -1) {
+        this.linting = false;
+      }
+
     }
   }
 
