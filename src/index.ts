@@ -42,7 +42,7 @@ const id = `jupyterlab-flake8`;
 
 class Preferences {
   toggled:Boolean = true;                // turn on/off linter
-  logging:Boolean = true;               // turn on/off logging
+  logging:Boolean = false;               // turn on/off logging
   highlight_color:string = 'yellow';    // color of highlights
   show_error_messages: Boolean = true;    // show error message
   termTimeout:number = 5000;             // seconds before the temrinal times out if it has not received a message
