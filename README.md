@@ -8,7 +8,7 @@ Jupyterlab extension to lint python notebook. Uses [`flake8`](http://flake8.pycq
 
 ## Prerequisites
 
-- JupyterLab >= 0.32
+- JupyterLab >= 0.33
 
 ```bash
 $ conda install -c conda-forge jupyterlab

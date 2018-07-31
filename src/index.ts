@@ -7,16 +7,18 @@ import {
 } from '@jupyterlab/apputils';
 
 import {
-  CodeMirrorEditor
-} from '@jupyterlab/codemirror';
-
-import {
   IMainMenu
 } from '@jupyterlab/mainmenu';
 
 import {
   INotebookTracker
 } from '@jupyterlab/notebook';
+
+
+
+import {
+  IStateDB
+} from '@jupyterlab/coreutils';
 
 import {
   Terminal
@@ -26,31 +28,45 @@ import {
   Cell // ICellModel
 } from '@jupyterlab/cells';
 
-// TODO: why import CodeMirror from here?
+import {
+  CodeMirrorEditor
+} from '@jupyterlab/codemirror';
+
 import * as CodeMirror from 'codemirror';
 
 // CSS
 import '../style/index.css';
 
+// extension id
+const id = `jupyterlab-flake8`;
+
+class Preferences {
+  toggled:Boolean = true;                // turn on/off linter
+  logging:Boolean = true;               // turn on/off logging
+  highlight_color:string = 'yellow';    // color of highlights
+  show_error_messages: Boolean = true;    // show error message
+  termTimeout:number = 5000;             // seconds before the temrinal times out if it has not received a message
+}
 /**
  * Linter
  */
 class Linter {
   app: JupyterLab;
-  tracker: INotebookTracker;
+  notebookTracker: INotebookTracker;
   palette: ICommandPalette;
   mainMenu: IMainMenu;
+  state: IStateDB;
   term: Terminal;
+  
+  prefsKey = `${id}:preferences`;
 
   // Default Options
-  loaded: boolean = false;                // if flake8 is available
-  toggled: boolean = true;                // turn on.off linter
-  logging: boolean = false;                // turn on.off linter
-  highlight_color: string = 'yellow';     // color of highlights
-  show_error_messages: boolean = true;            // show error message
+  prefs =  new Preferences();
 
   // flags
-  linting: boolean = false;          // flag if the linter is processing
+  loaded: boolean = false;              // flag if flake8 is available
+  linting: boolean = false;             // flag if the linter is processing
+  termTimeoutHandle: number;            // flag if the linter is processing
 
   // cache
   cell_text: Array<string>;           // current nb cells
@@ -62,23 +78,41 @@ class Linter {
   bookmarks: Array<any> = [];         // text marker objects currently active
 
   constructor(app: JupyterLab, 
-              tracker: INotebookTracker, 
+              notebookTracker: INotebookTracker, 
               palette: ICommandPalette, 
-              mainMenu: IMainMenu){
+              mainMenu: IMainMenu,
+              state: IStateDB,
+              ){
    
     this.app = app;
     this.mainMenu = mainMenu;
-    this.tracker = tracker;
+    this.notebookTracker = notebookTracker;
     this.palette = palette;
+    this.state = state;
+
+    // Load the saved plugin state and apply it once the app
+    // has finished restoring its former layout.
+    Promise.all([this.state.fetch(this.prefsKey), app.restored])
+      .then(([savedPrefs]) => {
+        try {
+          let prefs:Preferences = JSON.parse(<any>savedPrefs);
+          Object.keys(prefs).forEach((key:string) => {
+            (<any>this.prefs)[key] = (<any>prefs)[key];
+          });
+          this.log(`loaded preferences`);
+        } catch(e) {
+          this.log(`Failed to load preferences`);
+        }
+      });
 
     // activate function when cell changes
-    this.tracker.activeCellChanged.connect(this.onActiveCellChanged, this);
+    this.notebookTracker.activeCellChanged.connect(this.onActiveCellChanged, this);
 
     // add menu item
     this.add_commands();
 
     // if the linter is enabled, load it
-    if (this.toggled) {
+    if (this.prefs.toggled) {
       this.load_linter();
     }
   }
@@ -92,11 +126,11 @@ class Linter {
     if (!this.app.serviceManager.terminals.isAvailable()) {
       this.log('Disabling jupyterlab-flake8 plugin because it cant access terminal');
       this.loaded = false;
-      this.toggled = false;
+      this.prefs.toggled = false;
       return;
     }
 
-    this.term = new Terminal();
+    this.term = new Terminal({initialCommand: 'echo "Opening flake8 terminal"'});
     try {
       this.term.session = await this.app.serviceManager.terminals.startNew();
 
@@ -172,9 +206,9 @@ class Linter {
    * Turn linting on/off
    */
   toggle_linter(){
-    this.toggled = !this.toggled;
+    this.prefs.toggled = !this.prefs.toggled;
 
-    if (this.toggled) {
+    if (this.prefs.toggled) {
       this.load_linter();
     } else {
       this.dispose_linter();
@@ -185,9 +219,9 @@ class Linter {
    * Turn error messages on/off
    */
   toggle_error_messages(){
-    this.show_error_messages = !this.show_error_messages;
+    this.prefs.show_error_messages = !this.prefs.show_error_messages;
 
-    if (!this.show_error_messages) {
+    if (!this.prefs.show_error_messages) {
       this.clear_error_messages();
     }
   }
@@ -203,25 +237,28 @@ class Linter {
       'flake8:toggle': {
         label: "Enable Flake8",
         isEnabled: () => { return this.loaded},
-        isToggled: () => { return this.toggled},
+        isToggled: () => { return this.prefs.toggled},
         execute: () => {
           this.toggle_linter();
+          this.savePreferences();
         } 
       },
       'flake8:show_error_messages': {
         label: "Show Flake8 Error Messages",
         isEnabled: () => { return this.loaded},
-        isToggled: () => { return this.show_error_messages},
+        isToggled: () => { return this.prefs.show_error_messages},
         execute: () => {
           this.toggle_error_messages();
+          this.savePreferences();
         } 
       },      
       'flake8:show_browser_logs': {
         label: "Output Flake8 Browser Console Logs",
         isEnabled: () => { return this.loaded},
-        isToggled: () => { return this.logging},
+        isToggled: () => { return this.prefs.logging},
         execute: () => {
-          this.logging = !this.logging;
+          this.prefs.logging = !this.prefs.logging;
+          this.savePreferences();
         } 
       },
     };
@@ -237,10 +274,18 @@ class Linter {
   }
 
   /**
+   * Save state preferences
+   */
+  private savePreferences() {
+    this.state.save(`${this.prefsKey}`, JSON.stringify(this.prefs));
+    this.log(`saved preferences: ${JSON.stringify(this.prefs)}`);
+  }
+
+  /**
    * Run linter when active cell changes
    */
   private onActiveCellChanged(): void {
-    if (this.loaded && this.toggled) {
+    if (this.loaded && this.prefs.toggled) {
       if (!this.linting) {
         this.lint();
       } else {
@@ -299,7 +344,7 @@ class Linter {
     this.linting = true;  // no way to turn this off yet
 
     // load notebook
-    this.notebook = this.tracker.currentWidget.notebook;
+    this.notebook = this.notebookTracker.currentWidget.content;
     this.cells = this.notebook.widgets;
     
     this.log('getting notebook text');
@@ -374,6 +419,12 @@ class Linter {
     let lint_cmd = this.lint_cmd(pytext);
     this.log('sending lint command');
     this.term.session.send({type: 'stdin', content: [`${lint_cmd}\r`]})
+    this.termTimeoutHandle = setTimeout(() => {
+      if (this.linting = true) {
+        this.log('lint command timed out');
+        this.dispose_linter();
+      }
+    }, this.prefs.termTimeout)
   }
 
   /**
@@ -383,6 +434,7 @@ class Linter {
    * @param {any} msg    [description]
    */
   onLintMessage(sender:any, msg:any): void {
+    clearTimeout(this.termTimeoutHandle)
     if (msg.content) {
       let message:string = msg.content[0] as string;
       this.log(`terminal message: ${message}`);
@@ -448,13 +500,13 @@ class Linter {
         // replacedWith: selected_char_node,
         className: 'jupyterlab-flake8-lint-message',
         css: `
-          background-color: ${this.highlight_color}
+          background-color: ${this.prefs.highlight_color}
         `
       }));
 
     // TODO: show this is a hover-over bubble
     // create error alert node
-    if (this.show_error_messages) {
+    if (this.prefs.show_error_messages) {
       let lint_alert = document.createElement('span');
       let lint_message = document.createTextNode(`------ ${message}`);
       lint_alert.appendChild(lint_message);
@@ -485,8 +537,8 @@ class Linter {
    */
   log(msg:any) {
 
-    // return if logging is not enabled
-    if (!this.logging) {
+    // return if prefs.logging is not enabled
+    if (!this.prefs.logging) {
       return;
     }
 
@@ -507,11 +559,13 @@ class Linter {
  * Activate extension
  */
 function activate(app: JupyterLab, 
-                  tracker: INotebookTracker, 
+                  notebookTracker: INotebookTracker,
                   palette: ICommandPalette, 
-                  mainMenu: IMainMenu) {
+                  mainMenu: IMainMenu,
+                  state: IStateDB
+                  ) {
 
-  new Linter(app, tracker, palette, mainMenu);
+  new Linter(app, notebookTracker, palette, mainMenu, state);
 
 };
 
@@ -523,7 +577,7 @@ const extension: JupyterLabPlugin<void> = {
   id: 'jupyterlab-flake8',
   autoStart: true,
   activate: activate,
-  requires: [INotebookTracker, ICommandPalette, IMainMenu]
+  requires: [INotebookTracker, ICommandPalette, IMainMenu, IStateDB]
 };
 
 export default extension;
