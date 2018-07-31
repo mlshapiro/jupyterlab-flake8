@@ -14,7 +14,9 @@ import {
   INotebookTracker
 } from '@jupyterlab/notebook';
 
-
+import { 
+  IEditorTracker
+} from '@jupyterlab/fileeditor';
 
 import {
   IStateDB
@@ -53,6 +55,7 @@ class Preferences {
 class Linter {
   app: JupyterLab;
   notebookTracker: INotebookTracker;
+  editorTracker: IEditorTracker;
   palette: ICommandPalette;
   mainMenu: IMainMenu;
   state: IStateDB;
@@ -77,8 +80,13 @@ class Linter {
   marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
   bookmarks: Array<any> = [];         // text marker objects currently active
 
+
+  editor: any;                        // current file editor widget
+  editortext: any;                    // current file editor text
+
   constructor(app: JupyterLab, 
-              notebookTracker: INotebookTracker, 
+              notebookTracker: INotebookTracker,
+              editorTracker: IEditorTracker,
               palette: ICommandPalette, 
               mainMenu: IMainMenu,
               state: IStateDB,
@@ -87,6 +95,7 @@ class Linter {
     this.app = app;
     this.mainMenu = mainMenu;
     this.notebookTracker = notebookTracker;
+    this.editorTracker = editorTracker;
     this.palette = palette;
     this.state = state;
 
@@ -108,6 +117,9 @@ class Linter {
     // activate function when cell changes
     this.notebookTracker.activeCellChanged.connect(this.onActiveCellChanged, this);
 
+    // activate when editor changes
+    this.editorTracker.currentChanged.connect(this.onActiveEditorChanged, this);
+    
     // add menu item
     this.add_commands();
 
@@ -203,93 +215,27 @@ class Linter {
   }
 
   /**
-   * Turn linting on/off
-   */
-  toggle_linter(){
-    this.prefs.toggled = !this.prefs.toggled;
-
-    if (this.prefs.toggled) {
-      this.load_linter();
-    } else {
-      this.dispose_linter();
-    }
-  }
-
-  /**
-   * Turn error messages on/off
-   */
-  toggle_error_messages(){
-    this.prefs.show_error_messages = !this.prefs.show_error_messages;
-
-    if (!this.prefs.show_error_messages) {
-      this.clear_error_messages();
-    }
-  }
-
-  /**
-   * Create menu / command items
-   */
-  add_commands(){
-    let category = 'Flake8';
-
-    // define all commands
-    let commands:any = {
-      'flake8:toggle': {
-        label: "Enable Flake8",
-        isEnabled: () => { return this.loaded},
-        isToggled: () => { return this.prefs.toggled},
-        execute: () => {
-          this.toggle_linter();
-          this.savePreferences();
-        } 
-      },
-      'flake8:show_error_messages': {
-        label: "Show Flake8 Error Messages",
-        isEnabled: () => { return this.loaded},
-        isToggled: () => { return this.prefs.show_error_messages},
-        execute: () => {
-          this.toggle_error_messages();
-          this.savePreferences();
-        } 
-      },      
-      'flake8:show_browser_logs': {
-        label: "Output Flake8 Browser Console Logs",
-        isEnabled: () => { return this.loaded},
-        isToggled: () => { return this.prefs.logging},
-        execute: () => {
-          this.prefs.logging = !this.prefs.logging;
-          this.savePreferences();
-        } 
-      },
-    };
-
-    // add commands to menus and palette
-    for (let key in commands) {
-      this.app.commands.addCommand(key, commands[key]);
-      this.palette.addItem({command: key, category: category} );
-    }
-
-    // add to view Menu
-    this.mainMenu.viewMenu.addGroup(Object.keys(commands).map(key => {return {command: key} }), 30);
-  }
-
-  /**
-   * Save state preferences
-   */
-  private savePreferences() {
-    this.state.save(`${this.prefsKey}`, JSON.stringify(this.prefs));
-    this.log(`saved preferences: ${JSON.stringify(this.prefs)}`);
-  }
-
-  /**
    * Run linter when active cell changes
    */
   private onActiveCellChanged(): void {
     if (this.loaded && this.prefs.toggled) {
       if (!this.linting) {
-        this.lint();
+        this.lint_notebook();
       } else {
         this.log('flake8 is already running onActiveCellChanged');
+      }
+    }
+  }
+
+  /**
+   * Run linter when active editor changes
+   */
+  private onActiveEditorChanged(): void {
+    if (this.loaded && this.prefs.toggled) {
+      if (!this.linting) {
+        this.lint_editor();
+      } else {
+        this.log('flake8 is already running onEditorChanged');
       }
     }
   }
@@ -336,11 +282,39 @@ class Linter {
     });
   }
 
+  /**
+   * Lint the CodeMirror Editor
+   */
+  lint_editor() {
+
+    // return if file is being closed
+    if (!this.editorTracker.currentWidget) {
+      return;
+    }
+
+    this.linting = true;  // no way to turn this off yet
+
+    // load content
+    this.editor = this.editorTracker.currentWidget.content;
+
+    console.log(this.editor);
+    console.log(this.editor.context);
+    console.log(this.editor.model);
+
+    // catch if file is not a .py file
+    if (this.editor.context.path.indexOf('.py') === -1) {
+      this.log(`not a python file`);
+      return;
+    }
+
+    let pytext = this.editor.model.value.text;
+    this.lint(pytext, mark_editor);
+  }
 
   /**
    * Run flake8 linting on notebook cells
    */
-  lint() {
+  lint_notebook() {
     this.linting = true;  // no way to turn this off yet
 
     // load notebook
@@ -395,6 +369,9 @@ class Linter {
     // join cells with text with two new lines
     let pytext =  this.cell_text.join('');
 
+    this.lint(pytext, mark_notebook);
+
+    // TODO: move this in to a common utility
     // cache pytext on nbtext
     if (pytext !== this.nbtext) {
       this.nbtext = pytext;
@@ -552,6 +529,85 @@ class Linter {
     console.log(output);
   }
 
+    /**
+   * Turn linting on/off
+   */
+  toggle_linter(){
+    this.prefs.toggled = !this.prefs.toggled;
+
+    if (this.prefs.toggled) {
+      this.load_linter();
+    } else {
+      this.dispose_linter();
+    }
+  }
+
+  /**
+   * Turn error messages on/off
+   */
+  toggle_error_messages(){
+    this.prefs.show_error_messages = !this.prefs.show_error_messages;
+
+    if (!this.prefs.show_error_messages) {
+      this.clear_error_messages();
+    }
+  }
+
+  /**
+   * Create menu / command items
+   */
+  add_commands(){
+    let category = 'Flake8';
+
+    // define all commands
+    let commands:any = {
+      'flake8:toggle': {
+        label: "Enable Flake8",
+        isEnabled: () => { return this.loaded},
+        isToggled: () => { return this.prefs.toggled},
+        execute: () => {
+          this.toggle_linter();
+          this.savePreferences();
+        } 
+      },
+      'flake8:show_error_messages': {
+        label: "Show Flake8 Error Messages",
+        isEnabled: () => { return this.loaded},
+        isToggled: () => { return this.prefs.show_error_messages},
+        execute: () => {
+          this.toggle_error_messages();
+          this.savePreferences();
+        } 
+      },      
+      'flake8:show_browser_logs': {
+        label: "Output Flake8 Browser Console Logs",
+        isEnabled: () => { return this.loaded},
+        isToggled: () => { return this.prefs.logging},
+        execute: () => {
+          this.prefs.logging = !this.prefs.logging;
+          this.savePreferences();
+        } 
+      },
+    };
+
+    // add commands to menus and palette
+    for (let key in commands) {
+      this.app.commands.addCommand(key, commands[key]);
+      this.palette.addItem({command: key, category: category} );
+    }
+
+    // add to view Menu
+    this.mainMenu.viewMenu.addGroup(Object.keys(commands).map(key => {return {command: key} }), 30);
+  }
+
+  /**
+   * Save state preferences
+   */
+  private savePreferences() {
+    this.state.save(`${this.prefsKey}`, JSON.stringify(this.prefs));
+    this.log(`saved preferences: ${JSON.stringify(this.prefs)}`);
+  }
+
 }
 
 
@@ -560,12 +616,13 @@ class Linter {
  */
 function activate(app: JupyterLab, 
                   notebookTracker: INotebookTracker,
+                  editorTracker: IEditorTracker,
                   palette: ICommandPalette, 
                   mainMenu: IMainMenu,
                   state: IStateDB
                   ) {
 
-  new Linter(app, notebookTracker, palette, mainMenu, state);
+  new Linter(app, notebookTracker, editorTracker, palette, mainMenu, state);
 
 };
 
@@ -577,7 +634,7 @@ const extension: JupyterLabPlugin<void> = {
   id: 'jupyterlab-flake8',
   autoStart: true,
   activate: activate,
-  requires: [INotebookTracker, ICommandPalette, IMainMenu, IStateDB]
+  requires: [INotebookTracker, IEditorTracker, ICommandPalette, IMainMenu, IStateDB]
 };
 
 export default extension;
