@@ -1,10 +1,13 @@
 # Jupyterlab-flake8
 
-Jupyterlab extension to lint python notebook. Uses [`flake8`](http://flake8.pycqa.org/en/latest/) python library for linting.
+Jupyterlab extension to lint python notebooks and python files in the text editor. Uses [`flake8`](http://flake8.pycqa.org/en/latest/) python library for linting.
 
 > Note: This extension will only work if you can load the terminal in jupyterlab. The terminal does [not currently work on Windows 7](https://github.com/jupyterlab/jupyterlab/issues/3647)
 
 <img src="img/example.png" />
+
+<img src="img/editor-example.png" />
+
 
 ## Prerequisites
 
@@ -30,6 +33,8 @@ jupyter labextension install jupyterlab-flake8
 ## Usage
 
 When the extension is installed, the linter will automatically be toggled on and configured to show error messages.  The linter will run when you change cells.
+
+The linter will run on state change of the notebook or the text editor. State changes occur when the document is saved, the cell is changed, or on some carriage returns.
 
 Options in the view menu (or command palette):
 
@@ -72,9 +77,7 @@ The `flake8` linter will then use this configuration in the notebook.
 Please help contribute if you have time and think this is useful. I will continue to improve as I have time:
 
 - show error messages on hover rather than in a new line
-- run linter more frequently (i.e. on a new line, on save)
-  - make frequency a configurable option
-- extend to run in the text editor
+- make lint frequency a configurable option
 
 ## Development
 

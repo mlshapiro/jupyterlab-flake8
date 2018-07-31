@@ -71,18 +71,22 @@ class Linter {
   linting: boolean = false;             // flag if the linter is processing
   termTimeoutHandle: number;            // flag if the linter is processing
 
-  // cache
+  // notebook
   cell_text: Array<string>;           // current nb cells
   cells: Array<any>;                  // widgets from notebook
   notebook: any;                      // current nb cells
   lookup: any;                        // lookup of line index
-  nbtext: string = '';                // current nb text
-  marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
-  bookmarks: Array<any> = [];         // text marker objects currently active
 
-
+  // editor
   editor: any;                        // current file editor widget
   editortext: any;                    // current file editor text
+
+  // cache
+  cache: Array<any> = [];            // cache for messages
+  marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
+  bookmarks: Array<any> = [];         // text marker objects currently active
+  text: string = '';                // current nb text
+  process_mark: Function;           // default line marker processor
 
   constructor(app: JupyterLab, 
               notebookTracker: INotebookTracker,
@@ -115,11 +119,11 @@ class Linter {
       });
 
     // activate function when cell changes
-    this.notebookTracker.activeCellChanged.connect(this.onActiveCellChanged, this);
+    this.notebookTracker.currentChanged.connect(this.onActiveNotebookChanged, this);
 
     // activate when editor changes
     this.editorTracker.currentChanged.connect(this.onActiveEditorChanged, this);
-    
+
     // add menu item
     this.add_commands();
 
@@ -153,45 +157,13 @@ class Linter {
       }, 4000)
     }
     catch(e) {
+      this.loaded = false;
+      this.prefs.toggled = false;
       this.term.dispose();
       this.term = undefined;
     }
   }
 
-  /**
-   * Check to see if flake8 is available on the machine
-   * @deprecated for now
-   */
-  check_flake8() {
-    let self = this;
-
-    // need to figure out how to import ISession and IMessage
-    function onTerminalMessage(sender:any, msg:any): void {
-      let message:string = msg.content[0];
-      this.log(`terminal message: ${message}`);
-
-      // return if its just a message reflection
-      if (message.indexOf('which flake8') > -1) {
-        return;
-      }
-
-      // if message includes flake8, then `which flake8` was successful and we can say the library is loaded
-      if (message.indexOf('flake8') > -1) {
-        self.loaded = true;
-        self.activate_flake8();
-      } else {
-        alert('Flake8 was not found in this python distribution. \n\nInstall with `pip install flake8` or `conda install flake8` and reload the jupyterlab window')
-        self.loaded = false;
-      }
-
-      // remove this listener from the terminal session
-      self.term.session.messageReceived.disconnect(onTerminalMessage, this)
-    }
-
-    // listen for stdout in onTerminalMessage and ask `which flake8`
-    this.term.session.messageReceived.connect(onTerminalMessage, this);
-    this.term.session.send({type: 'stdin', content: ['which flake8\r']})
-  }
 
   /**
    * Activate flake8 terminal reader
@@ -206,12 +178,34 @@ class Linter {
    */
   dispose_linter() {
     this.log(`disposing flake8 and terminal`);
+    this.lint_cleanup();
     this.clear_marks();
 
     if (this.term) {
       this.term.session.messageReceived.disconnect(this.onLintMessage, this); 
       this.term.dispose();
     }
+  }
+
+  /**
+   * load linter when notebook changes
+   */
+  private onActiveNotebookChanged(): void {
+    // return if file is being closed
+    if (!this.notebookTracker.currentWidget) {
+      return;
+    }
+
+    // select the notebook
+    this.notebook = this.notebookTracker.currentWidget.content;
+
+    // run on cell changing
+    // this.notebookTracker.activeCellChanged.disconnect(this.onActiveCellChanged, this);
+    // this.notebookTracker.activeCellChanged.connect(this.onActiveCellChanged, this);
+
+    // run on stateChanged
+    this.notebook.model.stateChanged.disconnect(this.onActiveCellChanged, this);
+    this.notebook.model.stateChanged.connect(this.onActiveCellChanged, this);
   }
 
   /**
@@ -227,10 +221,29 @@ class Linter {
     }
   }
 
+
   /**
-   * Run linter when active editor changes
+   * load linter when active editor loads
    */
   private onActiveEditorChanged(): void {
+    // return if file is being closed
+    if (!this.editorTracker.currentWidget) {
+      return;
+    }
+
+    // select the editor
+    this.editor = this.editorTracker.currentWidget.content;
+
+    // run on stateChanged
+    this.editor.model.stateChanged.disconnect(this.onActiveEditorChanges, this);
+    this.editor.model.stateChanged.connect(this.onActiveEditorChanges, this);
+
+  }
+
+  /**
+   * Run linter on active editor changes
+   */
+  private onActiveEditorChanges(): void {
     if (this.loaded && this.prefs.toggled) {
       if (!this.linting) {
         this.lint_editor();
@@ -271,6 +284,9 @@ class Linter {
 
     // clear error messages as well
     this.clear_error_messages();
+
+    // clear cache
+    this.cache = [];
   }
 
   /**
@@ -286,29 +302,42 @@ class Linter {
    * Lint the CodeMirror Editor
    */
   lint_editor() {
-
-    // return if file is being closed
-    if (!this.editorTracker.currentWidget) {
-      return;
-    }
-
     this.linting = true;  // no way to turn this off yet
+    this.process_mark = this.mark_editor;
 
-    // load content
-    this.editor = this.editorTracker.currentWidget.content;
-
-    console.log(this.editor);
-    console.log(this.editor.context);
-    console.log(this.editor.model);
+    this.log('getting editor text');
 
     // catch if file is not a .py file
-    if (this.editor.context.path.indexOf('.py') === -1) {
-      this.log(`not a python file`);
+    if (this.editor.model._defaultLang !== 'python') {
+      this.log(`not python default lang`);
+      this.lint_cleanup();
       return;
     }
 
     let pytext = this.editor.model.value.text;
-    this.lint(pytext, mark_editor);
+    this.lint(pytext);
+  }
+
+  /**
+   * mark the editor pane
+   * @param {number} line    [description]
+   * @param {number} ch      [description]
+   * @param {string} message [description]
+   */
+  mark_editor(line:number, ch:number) {
+    this.log(`marking editor`);
+
+    line = line - 1; // 0 index
+    ch = ch - 1;  // not sure
+
+    // get lines
+    let from = {line: line, ch: ch};
+    let to = {line: line, ch: ch+1};
+
+    // get code mirror editor
+    let doc = this.editor.editorWidget.editor.doc;
+
+    return [doc, from, to];
   }
 
   /**
@@ -316,9 +345,9 @@ class Linter {
    */
   lint_notebook() {
     this.linting = true;  // no way to turn this off yet
+    this.process_mark = this.mark_notebook;
 
     // load notebook
-    this.notebook = this.notebookTracker.currentWidget.content;
     this.cells = this.notebook.widgets;
     
     this.log('getting notebook text');
@@ -369,22 +398,56 @@ class Linter {
     // join cells with text with two new lines
     let pytext =  this.cell_text.join('');
 
-    this.lint(pytext, mark_notebook);
+    // run linter
+    this.lint(pytext);
+  }
 
-    // TODO: move this in to a common utility
-    // cache pytext on nbtext
-    if (pytext !== this.nbtext) {
-      this.nbtext = pytext;
+  /**
+   * mark the line of the cell
+   * @param {number} line    the line # returned by flake8
+   * @param {number} ch      the character # returned by flake 8
+   */
+  mark_notebook(line:number, ch:number) {
+    let loc = this.lookup[line];
+    ch = ch - 1;  // make character 0 indexed
+
+    if (!loc) {
+      return;
+    }
+   
+    let from = {line: loc.line, ch: ch};
+    let to = {line: loc.line, ch: ch+1};
+
+    // get cell instance
+    let cell:Cell = this.notebook.widgets[loc.cell];
+
+    // get cell's code mirror editor
+    let editor:CodeMirrorEditor = cell.inputArea.editorWidget.editor as CodeMirrorEditor;
+    let doc = editor.doc;
+
+    return [doc, from, to];
+  }
+
+
+  /**
+   * Lint a python text message and callback marking function with line and character
+   * @param {string}   pytext        [description]
+   */
+  lint(pytext:string) {
+
+    // cache pytext on text
+    if (pytext !== this.text) {
+      this.text = pytext;
     } else {  // text has not changed
-      this.log('notebook text unchanged');
-      this.linting = false;
+      this.log('text unchanged');
+      this.lint_cleanup();
       return;
     }
 
     // TODO: handle if text is empty (any combination of '' and \n)
-    if (!this.text_exists(this.nbtext)) {
-      this.log('notebook text empty');
-      this.linting = false;
+    if (!this.text_exists(this.text)) {
+      this.log('text empty');
+      this.lint_cleanup();
       return;
     }
 
@@ -399,7 +462,10 @@ class Linter {
     this.termTimeoutHandle = setTimeout(() => {
       if (this.linting = true) {
         this.log('lint command timed out');
+        alert('jupyterlab-flake8 ran into an issue connecting with the terminal. Please try re-enabling the linter');
+        this.lint_cleanup();
         this.dispose_linter();
+        this.prefs.toggled = false;
       }
     }, this.prefs.termTimeout)
   }
@@ -419,14 +485,14 @@ class Linter {
       // if message a is a reflection of the command, return
       if (message.indexOf('Traceback') > -1) {
         alert(`Flake8 encountered a python error. Make sure flake8 is installed and on the system path. \n\nTraceback: ${message}`);
-        this.linting = false;
+        this.lint_cleanup();
         return;
       }
 
       // if message a is a reflection of the command, return
       if (message.indexOf('command not found') > -1 ) {
         alert(`Flake8 was not found in this python distribution. \n\nInstall with 'pip install flake8' or 'conda install flake8' and reload the jupyterlab window`);
-        this.linting = false;
+        this.lint_cleanup();
         return;
       }
 
@@ -435,41 +501,55 @@ class Linter {
           let idxs = m.split(':');
           let line = parseInt(idxs[1]);
           let ch = parseInt(idxs[2]);
-          this.mark_line(line, ch, idxs[3]);
+          this.get_mark(line, ch, idxs[3]);
         }
       });
 
       if (message.indexOf('jupyterlab-flake8 finished linting') > -1) {
-        this.linting = false;
+        this.lint_cleanup();
       }
 
     }
   }
 
-
   /**
-   * mark the line of the cell
-   * @param {number} line    the line # returned by flake8
-   * @param {number} ch      the character # returned by flake 8
-   * @param {string} message the flak8 error message
+   * Mark a line in notebook or editor
+   * @param {number} line    [description]
+   * @param {number} ch      [description]
+   * @param {string} message [description]
    */
-  mark_line(line:number, ch:number, message:string) {
-    let loc = this.lookup[line];
-    ch = ch - 1;  // make character 0 indexed
+  get_mark(line:number, ch:number, message:string) {
 
-    if (!loc) {
+    let doc, from, to;
+    if (this.process_mark) {
+      [doc, from, to] = this.process_mark(line, ch);
+    }
+
+    if (!doc || !from || !to) {
+      this.log(`mark location not fully defined`);
       return;
     }
-   
-    let from = {line: loc.line, ch: ch};
-    let to = {line: loc.line, ch: ch+1};
 
-    // get cell instance
-    let cell:Cell = this.notebook.widgets[loc.cell];
+    // cache mark
+    this.cache.push({
+      doc: doc,
+      from: from,
+      to: to,
+      message: message
+    });
 
-    // get cell's code mirror editor
-    let editor:CodeMirrorEditor = cell.inputArea.editorWidget.editor as CodeMirrorEditor;
-    let doc = editor.doc;
+    this.mark_line(doc, from, to, message);
+  }
+
+
+  /**
+   * Mark line in document
+   * @param {any}    doc     [description]
+   * @param {any}    from    [description]
+   * @param {any}    to      [description]
+   * @param {string} message [description]
+   */
+  private mark_line(doc:any, from:any, to:any, message:string) {
 
     // mark the text
     this.marks.push(doc.markText(from, to,
@@ -491,7 +571,7 @@ class Linter {
 
       // add error alert node to the 'to' location
       this.bookmarks.push(
-        (<any>doc).addLineWidget(loc.line, lint_alert)
+        (<any>doc).addLineWidget(from.line, lint_alert)
       );
     }
 
@@ -506,6 +586,14 @@ class Linter {
     // (<any>window).notebook = this.notebook;
     // (<any>window).cell = this.notebook.widgets[loc.cell];
     // (<any>window).CodeMirror = CodeMirror
+  }
+
+  /**
+   * Tear down lint fixtures
+   */
+  lint_cleanup() {
+    this.linting = false;
+    // this.process_mark = undefined;  
   }
 
   /**
@@ -550,6 +638,10 @@ class Linter {
 
     if (!this.prefs.show_error_messages) {
       this.clear_error_messages();
+    } else if (this.cache && this.cache.length > 0) {
+      this.cache.forEach((mark) => {
+        this.mark_line(mark.doc, mark.from, mark.to, mark.message);
+      });
     }
   }
 
@@ -578,7 +670,7 @@ class Linter {
           this.toggle_error_messages();
           this.savePreferences();
         } 
-      },      
+      },
       'flake8:show_browser_logs': {
         label: "Output Flake8 Browser Console Logs",
         isEnabled: () => { return this.loaded},
