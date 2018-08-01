@@ -305,10 +305,11 @@ class Linter {
     this.linting = true;  // no way to turn this off yet
     this.process_mark = this.mark_editor;
 
-    this.log('getting editor text');
 
     // catch if file is not a .py file
-    if (this.editor.model._defaultLang !== 'python') {
+    if (this.editor.context.path.indexOf('.py') > -1 || this.editor.model._defaultLang === 'python') {
+      this.log('getting editor text from python file');
+    } else {
       this.log(`not python default lang`);
       this.lint_cleanup();
       return;
