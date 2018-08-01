@@ -5,6 +5,7 @@
     "noEmitOnError": true,
     "noUnusedLocals": true,
     "module": "commonjs",
+    "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
     "target": "ES5",
     "outDir": "./lib",
