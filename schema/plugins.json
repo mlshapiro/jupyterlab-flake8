@@ -1,0 +1,35 @@
+{
+  "jupyter.lab.setting-icon-label": "Flake8",
+  "jupyter.lab.setting-icon-class": "jp-SettingsIcon",
+  "title": "Jupyterlab-Flake8",
+  "description": "Linter settings",
+  "properties": {
+    "toggled": {
+      "type": "boolean",
+      "description": "Whether or not the linter is enabled",
+      "default": true
+    },
+    "logging": {
+      "type": "boolean",
+      "description": "Log linter messages to the console for debugging",
+      "default": false
+    },
+    "highlight_color": {
+      "type": "string",
+      "description": "Highlight color",
+      "default": "yellow"
+    },
+    "show_error_messages": {
+      "type": "boolean",
+      "description": "Write error messages into cells",
+      "default": true
+    },
+    "termTimeout": {
+      "type": "integer",
+      "description": "Timeout for terminal initiation",
+      "default": 5000
+    }
+  },
+  "additionalProperties": false,
+  "type": "object"
+}

@@ -19,7 +19,8 @@ import {
 } from '@jupyterlab/fileeditor';
 
 import {
-  IStateDB
+  IStateDB,
+  ISettingRegistry
 } from '@jupyterlab/coreutils';
 
 import {
@@ -87,6 +88,7 @@ class Linter {
   bookmarks: Array<any> = [];         // text marker objects currently active
   text: string = '';                // current nb text
   process_mark: Function;           // default line marker processor
+  settingRegistry: ISettingRegistry;// settings
 
   constructor(app: JupyterLab, 
               notebookTracker: INotebookTracker,
@@ -94,6 +96,7 @@ class Linter {
               palette: ICommandPalette, 
               mainMenu: IMainMenu,
               state: IStateDB,
+              settingRegistry: ISettingRegistry
               ){
    
     this.app = app;
@@ -102,6 +105,23 @@ class Linter {
     this.editorTracker = editorTracker;
     this.palette = palette;
     this.state = state;
+    this.settingRegistry = settingRegistry;
+
+    // load settings from the registry
+    Promise.all([this.settingRegistry.load(id), app.restored])
+    .then(([settings]) => {
+      Object.keys(settings).forEach((key:string) => {
+        (<any>this.prefs)[key] = (<any>settings)[key];
+      });
+
+      this.log(`loaded settings`);
+      // settings.changed.connect(settings => {
+      //   overrides =
+      //     (settings.get('overrides').composite as overrideMap) || {};
+      //   handleLayoutOverrides();
+      // });
+      }
+    );
 
     // Load the saved plugin state and apply it once the app
     // has finished restoring its former layout.
@@ -146,7 +166,7 @@ class Linter {
       return;
     }
 
-    this.term = new Terminal({initialCommand: 'echo "Opening flake8 terminal"'});
+    this.term = new Terminal({initialCommand: `echo "Opening flake8 terminal" && source activate ${''}`});
     try {
       this.term.session = await this.app.serviceManager.terminals.startNew();
 
@@ -712,10 +732,11 @@ function activate(app: JupyterLab,
                   editorTracker: IEditorTracker,
                   palette: ICommandPalette, 
                   mainMenu: IMainMenu,
-                  state: IStateDB
+                  state: IStateDB,
+                  settingRegistry: ISettingRegistry
                   ) {
 
-  new Linter(app, notebookTracker, editorTracker, palette, mainMenu, state);
+  new Linter(app, notebookTracker, editorTracker, palette, mainMenu, state, settingRegistry);
 
 };
 
@@ -727,7 +748,7 @@ const extension: JupyterLabPlugin<void> = {
   id: 'jupyterlab-flake8',
   autoStart: true,
   activate: activate,
-  requires: [INotebookTracker, IEditorTracker, ICommandPalette, IMainMenu, IStateDB]
+  requires: [INotebookTracker, IEditorTracker, ICommandPalette, IMainMenu, IStateDB, ISettingRegistry]
 };
 
 export default extension;
