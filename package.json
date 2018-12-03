@@ -1,6 +1,6 @@
 {
   "name": "jupyterlab-flake8",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "jupyterlab extension to lint python code in the notebook and text editor",
   "keywords": [
     "jupyter",
