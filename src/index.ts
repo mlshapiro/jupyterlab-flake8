@@ -358,7 +358,8 @@ class Linter {
    * @return {string} [description]
    */
   private lint_cmd(contents:string): string {
-    let escaped = contents.replace(/["`]/g,'\\$&');
+    let escaped = contents.replace(/["`\\]/g,'\\$&');
+    // escaped = contents.replace(/[\\]/g,'\\$&');   // escape escapes
     escaped = escaped.replace('\r','');  // replace carriage returns
 
     // ignore magics by commenting
