@@ -50,7 +50,7 @@ Toggle shortcuts are also available in the view menu:
 - Output Flake8 Browser Console Logs
     + Turn on browser console logs for debugging the extension
     
-<img src="img/options.png" width="300" /> <img src="img/commands.png" width="300" />
+<img src="img/options.png" width="300" />
 
 ## Configure Flake8
 
