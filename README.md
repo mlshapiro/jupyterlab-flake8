@@ -39,7 +39,7 @@ The linter will run on state change of the notebook or the text editor. State ch
 ## Settings
 
 Plugin is configured in the Jupyter Lab *Advanced Settings*.
-If you are using a specific conda environment, you must explicitly set this environment in the advanced settings.
+If you are using a specific conda environment, you must explicitly set this environment in the `conda_env` variable of the plugin settings.
 
 Toggle shortcuts are also available in the view menu:
 
