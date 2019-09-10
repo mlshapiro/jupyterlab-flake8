@@ -1,6 +1,6 @@
 {
   "name": "jupyterlab-flake8",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "description": "jupyterlab extension to lint python code in the notebook and text editor",
   "keywords": [
     "jupyter",
@@ -25,25 +25,25 @@
   },
   "scripts": {
     "build": "tsc",
-    "clean": "rimraf lib",
+    "clean": "shx rm -rf lib",
     "watch": "tsc -w"
   },
   "dependencies": {
-    "@jupyterlab/application": "^0.19.1",
-    "@jupyterlab/apputils": "^0.19.1",
-    "@jupyterlab/cells": "^0.19.1",
-    "@jupyterlab/codemirror": "^0.19.1",
-    "@jupyterlab/coreutils": "^2.2.1",
-    "@jupyterlab/fileeditor": "^0.19.1",
-    "@jupyterlab/mainmenu": "^0.8.1",
-    "@jupyterlab/notebook": "^0.19.1",
-    "@jupyterlab/terminal": "^0.19.1",
-    "@types/codemirror": "0.0.70",
-    "codemirror": "^5.42.0"
+    "@jupyterlab/application": "^1.1.1",
+    "@jupyterlab/apputils": "^1.1.1",
+    "@jupyterlab/cells": "^1.1.1",
+    "@jupyterlab/codemirror": "^1.1.1",
+    "@jupyterlab/coreutils": "^3.1.0",
+    "@jupyterlab/fileeditor": "^1.1.1",
+    "@jupyterlab/mainmenu": "^1.1.1",
+    "@jupyterlab/notebook": "^1.1.1",
+    "@jupyterlab/terminal": "^1.1.1",
+    "@types/codemirror": "0.0.76",
+    "codemirror": "^5.48.4"
   },
   "devDependencies": {
-    "rimraf": "~2.6.2",
-    "typescript": "~2.9.2"
+    "shx": "^0.3.2",
+    "typescript": "~3.6.2"
   },
   "jupyterlab": {
     "extension": true

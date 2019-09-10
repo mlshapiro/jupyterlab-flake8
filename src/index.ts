@@ -1,5 +1,5 @@
 import {
-  JupyterLab, JupyterLabPlugin
+  JupyterFrontEnd, JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 
 import {
@@ -53,7 +53,7 @@ class Preferences {
  * Linter
  */
 class Linter {
-  app: JupyterLab;
+  app: JupyterFrontEnd;
   notebookTracker: INotebookTracker;
   editorTracker: IEditorTracker;
   palette: ICommandPalette;
@@ -87,8 +87,10 @@ class Linter {
   bookmarks: Array<any> = [];         // text marker objects currently active
   text: string = '';                // current nb text
   process_mark: Function;           // default line marker processor
+  env: string = undefined;             // conda environment
+  os: string = undefined;             // operating system
 
-  constructor(app: JupyterLab, 
+  constructor(app: JupyterFrontEnd, 
               notebookTracker: INotebookTracker,
               editorTracker: IEditorTracker,
               palette: ICommandPalette, 
@@ -104,7 +106,7 @@ class Linter {
     this.state = state;
 
     // Load the saved plugin state and apply it once the app
-    // has finished restoring its former layout.
+    // has finished restoring its former layout.  
     Promise.all([this.state.fetch(this.prefsKey), app.restored])
       .then(([savedPrefs]) => {
         try {
@@ -146,17 +148,89 @@ class Linter {
       return;
     }
 
-    this.term = new Terminal({initialCommand: 'echo "Opening flake8 terminal"'});
-    try {
-      this.term.session = await this.app.serviceManager.terminals.startNew();
+    let session = await this.app.serviceManager.terminals.startNew();
+    this.term = new Terminal(session, {initialCommand: `echo "Opening flake8 terminal"`});
 
-      // wait 4 seconds for terminal to load and get initial commands out of its system
+    // activate specific conda environment
+    function _setEnv(sender:any, msg: any) {
+      if (msg.content) {
+        let message:string = msg.content[0] as string;
+
+        // throw away non-strings
+        if (typeof(message) !== 'string') {
+          return;
+        }
+
+        if (message.indexOf('command not found') > -1 ) {
+          this.log(`conda was not found on this machine`);
+          this.term.session.messageReceived.disconnect(_setEnv, this);
+          this.finish_load();
+        }
+
+        // set conda env
+        if (message.indexOf('(') > -1 && message.indexOf(')') > -1) {
+          this.env = message.split('(')[1].split(')')[0];
+          this.log(`conda environment: ${this.env}`);
+
+          this.term.session.messageReceived.disconnect(_setEnv, this);
+          this.term.session.messageReceived.connect(_setOS, this);
+
+          // ask for OS
+          this.term.session.send({type: 'stdin', content: [`python -c "import os; print(os.name)"\r`]});
+        }
+      }
+    }
+    function _setOS(sender:any, msg: any) {
+      if (msg.content) {
+        let message:string = msg.content[0] as string;
+
+        // throw away non-strings
+        if (typeof(message) !== 'string') {
+          return;
+        }
+
+        if (message.indexOf('command not found') > -1 ) {
+          this.log(`python command failed on this machine`);
+          this.term.session.messageReceived.disconnect(_setOS, this);
+          this.finish_load();
+        }
+
+        // set conda env
+        if (message.indexOf('posix') > -1) {
+          this.os = message.split('\n')[0];
+          this.log(`os: ${this.os}`);
+
+          // disconnect
+          this.term.session.messageReceived.disconnect(_setOS, this);
+
+          // activate environment
+          if (this.env && this.os === 'posix') {
+            this.term.session.send({type: 'stdin', content: [`source activate ${this.env}\r`]});
+          } else if (this.env && this.os !== 'posix') {
+            this.term.session.send({type: 'stdin', content: [`activate ${this.env}\r`]});
+          }
+
+          // finish
+          this.finish_load();
+        }
+      }
+    }
+
+    // wait a moment for terminal to load and get initial commands out
+    setTimeout(() => {
+      this.term.session.messageReceived.connect(_setEnv, this);
+      this.term.session.send({type: 'stdin', content: [`conda env list\r`]});
+    }, 1000);
+  }
+
+  finish_load() {
+    try {
+      // wait a moment for terminal to get initial commands out of its system
       setTimeout(() => {
         this.loaded = true;
         this.activate_flake8();
-      }, 4000)
-    }
-    catch(e) {
+      }, 500)
+    } catch(e) {
       this.loaded = false;
       this.prefs.toggled = false;
       this.term.dispose();
@@ -182,7 +256,7 @@ class Linter {
     this.clear_marks();
 
     if (this.term) {
-      this.term.session.messageReceived.disconnect(this.onLintMessage, this); 
+      this.term.session.messageReceived.disconnect(this.onLintMessage, this);
       this.term.dispose();
     }
   }
@@ -481,6 +555,13 @@ class Linter {
     clearTimeout(this.termTimeoutHandle)
     if (msg.content) {
       let message:string = msg.content[0] as string;
+
+      // catch non-strings
+      if (typeof(message) !== 'string') {
+        return;
+      }
+
+      // log message
       this.log(`terminal message: ${message}`);
 
       // if message a is a reflection of the command, return
@@ -707,7 +788,7 @@ class Linter {
 /**
  * Activate extension
  */
-function activate(app: JupyterLab, 
+function activate(app: JupyterFrontEnd, 
                   notebookTracker: INotebookTracker,
                   editorTracker: IEditorTracker,
                   palette: ICommandPalette, 
@@ -723,7 +804,7 @@ function activate(app: JupyterLab,
 /**
  * Initialization data for the jupyterlab-flake8 extension.
  */
-const extension: JupyterLabPlugin<void> = {
+const extension: JupyterFrontEndPlugin<void> = {
   id: 'jupyterlab-flake8',
   autoStart: true,
   activate: activate,
