@@ -167,7 +167,7 @@ class Linter {
     }
 
     let session = await this.app.serviceManager.terminals.startNew();
-    this.term = new Terminal(session, {initialCommand: `echo "Opening flake8 terminal"`});
+    this.term = new Terminal(session, {initialCommand: `HISTFILE= ; echo "Opening flake8 terminal"`});
 
     // custom conda-env
     if (this.prefs.conda_env !== 'base') {
