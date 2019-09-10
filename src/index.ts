@@ -44,12 +44,13 @@ import '../style/index.css';
 const id = `jupyterlab-flake8`;
 
 class Preferences {
-  toggled:Boolean = true;               // turn on/off linter
-  logging:Boolean = false;              // turn on/off logging
-  highlight_color:string = 'yellow';    // color of highlights
-  show_error_messages: Boolean = true;  // show error message
-  term_timeout:number = 5000;           // seconds before the temrinal times out if it has not received a message
-  conda_env:string = 'base';             // conda environment
+  toggled:Boolean;                 // turn on/off linter
+  logging:Boolean;                 // turn on/off logging
+  highlight_color:string;          // color of highlights
+  show_error_messages: Boolean;    // show error message
+  term_timeout:number;             // seconds before the temrinal times out if it has not received a message
+  conda_env:string;                // conda environment
+  terminal_name:string;            // persistent terminal to share between session
 }
 /**
  * Linter
@@ -113,12 +114,17 @@ class Linter {
     // load settings from the registry
     Promise.all([this.settingRegistry.load(this.settingsKey), app.restored])
       .then(([settings]) => {
-        this.update_settings(settings);
+        this.update_settings(settings, true);
 
-        // update settings
+        // callback to update settings on changes
         settings.changed.connect((settings:ISettingRegistry.ISettings) => {
           this.update_settings(settings);
         });
+
+        // on first load, if linter enabled, start it up
+        if (this.prefs.toggled) {
+          this.load_linter();
+        }
       });
 
     // activate function when cell changes
@@ -131,32 +137,34 @@ class Linter {
     this.add_commands();
   }
 
-  update_settings(settings:ISettingRegistry.ISettings) {
+  /**
+   * Update settings callback
+   * @param {ISettingRegistry.ISettings} settings
+   */
+  private update_settings(settings:ISettingRegistry.ISettings, first_load:Boolean=false) {
+    let old = JSON.parse(JSON.stringify(this.prefs)); // copy old prefs
+
+    // set settings to prefs object
     Object.keys(settings.composite).forEach((key:string) => {
       (<any>this.prefs)[key] = (<any>settings.composite)[key];
     });
     this.log(`loaded settings ${JSON.stringify(this.prefs)}`);
 
-    // if the linter is enabled, load it
-    if (this.prefs.toggled && !this.loaded) {
-      this.load_linter();
-    } else if (!this.prefs.toggled && this.loaded) {
-      this.dispose_linter();
+    // toggle linter
+    if (!first_load && old.toggled !== this.prefs.toggled) {
+      this.toggle_linter();
     }
 
-    if (!this.prefs.show_error_messages) {
-      this.clear_error_messages();
-    } else if (this.loaded && this.cache && this.cache.length > 0) {
-      this.cache.forEach((mark) => {
-        this.mark_line(mark.doc, mark.from, mark.to, mark.message);
-      });
+    // and error messages
+    if (!first_load && old.show_error_messages !== this.prefs.show_error_messages) {
+      this.toggle_error_messages();
     }
   }
 
   /**
    * Load terminal session and flake8
    */
-  async load_linter(){
+  private async load_linter(){
 
     // Bail if there are no terminals available.
     if (!this.app.serviceManager.terminals.isAvailable()) {
@@ -166,21 +174,36 @@ class Linter {
       return;
     }
 
-    let session = await this.app.serviceManager.terminals.startNew();
-    this.term = new Terminal(session, {initialCommand: `HISTFILE= ; echo "Opening flake8 terminal"`});
+    // try to connect to previous terminal, if not start a new one
+    // TODO: still can't set the name of a terminal, so for now saving the "new"
+    // terminal name in the settings (#16)
+    let session = await this.app.serviceManager.terminals 
+      .connectTo(this.prefs.terminal_name)
+      .catch(() => {
+        this.log(`starting new terminal session`);
+        return this.app.serviceManager.terminals.startNew()
+      });
+
+    // save terminal name
+    this.setPreference('terminal_name', session.name);
+
+    this.log(`set terminal_name to ${session.name}`);
+    this.term = new Terminal(session, {
+      initialCommand: `HISTFILE= ; echo "Opening flake8 terminal"`
+    });
 
     // custom conda-env
     if (this.prefs.conda_env !== 'base') {
-      this.setEnv();
+      this.set_env();
     } else {
       this.finish_load();
     }
   }
 
   // activate specific conda environment
-  setEnv() {
+  private set_env() {
 
-    function _getOS(sender:any, msg: any) {
+    function _get_OS(sender:any, msg: any) {
       if (msg.content) {
         let message:string = msg.content[0] as string;
         // throw away non-strings
@@ -190,7 +213,7 @@ class Linter {
 
         if (message.indexOf('command not found') > -1 ) {
           this.log(`python command failed on this machine`);
-          this.term.session.messageReceived.disconnect(_getOS, this);
+          this.term.session.messageReceived.disconnect(_get_OS, this);
           this.finish_load();
         }
 
@@ -208,7 +231,7 @@ class Linter {
           }
 
           // disconnect
-          // this.term.session.messageReceived.disconnect(_getOS, this);
+          // this.term.session.messageReceived.disconnect(_get_OS, this);
 
           // finish
           this.finish_load();
@@ -218,13 +241,13 @@ class Linter {
 
     // wait a moment for terminal to load and then ask for OS
     setTimeout(() => {
-      this.term.session.messageReceived.connect(_getOS, this);
+      this.term.session.messageReceived.connect(_get_OS, this);
       this.term.session.send({type: 'stdin', content: [`python -c "import os; print(os.name)"\r`]});
     }, 1000);
   }
   
 
-  finish_load() {
+  private finish_load() {
     try {
       // wait a moment for terminal to get initial commands out of its system
       setTimeout(() => {
@@ -243,7 +266,7 @@ class Linter {
   /**
    * Activate flake8 terminal reader
    */
-  activate_flake8() {
+  private activate_flake8() {
     // listen for stdout in onLintMessage
     this.term.session.messageReceived.connect(this.onLintMessage, this);
   }
@@ -251,7 +274,7 @@ class Linter {
   /**
    * Dispose of the terminal used to lint
    */
-  dispose_linter() {
+  private dispose_linter() {
     this.log(`disposing flake8 and terminal`);
     this.lint_cleanup();
     this.clear_marks();
@@ -334,7 +357,7 @@ class Linter {
    * @param  {string} contents - contents of the notebook ready to be linted
    * @return {string} [description]
    */
-  lint_cmd(contents:string): string {
+  private lint_cmd(contents:string): string {
     let escaped = contents.replace(/["`]/g,'\\$&');
     escaped = escaped.replace('\r','');  // replace carriage returns
     return `(echo "${escaped}" | flake8 --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`
@@ -376,7 +399,7 @@ class Linter {
   /**
    * Lint the CodeMirror Editor
    */
-  lint_editor() {
+  private lint_editor() {
     this.linting = true;  // no way to turn this off yet
     this.process_mark = this.mark_editor;
 
@@ -400,7 +423,7 @@ class Linter {
    * @param {number} ch      [description]
    * @param {string} message [description]
    */
-  mark_editor(line:number, ch:number) {
+  private mark_editor(line:number, ch:number) {
     this.log(`marking editor`);
 
     line = line - 1; // 0 index
@@ -419,7 +442,7 @@ class Linter {
   /**
    * Run flake8 linting on notebook cells
    */
-  lint_notebook() {
+  private lint_notebook() {
     this.linting = true;  // no way to turn this off yet
     this.process_mark = this.mark_notebook;
 
@@ -483,7 +506,7 @@ class Linter {
    * @param {number} line    the line # returned by flake8
    * @param {number} ch      the character # returned by flake 8
    */
-  mark_notebook(line:number, ch:number) {
+  private mark_notebook(line:number, ch:number) {
     let loc = this.lookup[line];
     ch = ch - 1;  // make character 0 indexed
 
@@ -509,7 +532,7 @@ class Linter {
    * Lint a python text message and callback marking function with line and character
    * @param {string}   pytext        [description]
    */
-  lint(pytext:string) {
+  private lint(pytext:string) {
 
     // cache pytext on text
     if (pytext !== this.text) {
@@ -552,7 +575,7 @@ class Linter {
    * @param {any} sender [description]
    * @param {any} msg    [description]
    */
-  onLintMessage(sender:any, msg:any): void {
+  private onLintMessage(sender:any, msg:any): void {
     clearTimeout(this.termTimeoutHandle)
     if (msg.content) {
       let message:string = msg.content[0] as string;
@@ -601,7 +624,7 @@ class Linter {
    * @param {number} ch      [description]
    * @param {string} message [description]
    */
-  get_mark(line:number, ch:number, message:string) {
+  private get_mark(line:number, ch:number, message:string) {
 
     // ignore magics
     if (message[0] === '%' && message[1] === '%') {
@@ -609,8 +632,13 @@ class Linter {
     }
 
     let doc, from, to;
-    if (this.process_mark) {
-      [doc, from, to] = this.process_mark(line, ch);
+    try {
+      if (this.process_mark && typeof(this.process_mark) === 'function') {
+        [doc, from, to] = this.process_mark(line, ch);
+      }
+    } catch(e) {
+      this.log(`failed to run process_mark`);
+      return;
     }
 
     if (!doc || !from || !to) {
@@ -679,7 +707,7 @@ class Linter {
   /**
    * Tear down lint fixtures
    */
-  lint_cleanup() {
+  private lint_cleanup() {
     this.linting = false;
     // this.process_mark = undefined;  
   }
@@ -688,7 +716,7 @@ class Linter {
    * Show browser logs
    * @param {any} msg [description]
    */
-  log(msg:any) {
+  private log(msg:any) {
 
     // return if prefs.logging is not enabled
     if (!this.prefs.logging) {
@@ -717,7 +745,7 @@ class Linter {
         label: "Enable Flake8",
         isEnabled: () => { return this.loaded},
         isToggled: () => { return this.prefs.toggled},
-        execute: () => {
+        execute: async () => {
           this.setPreference('toggled', !this.prefs.toggled);
         } 
       },
@@ -725,7 +753,7 @@ class Linter {
         label: "Show Flake8 Error Messages",
         isEnabled: () => { return this.loaded},
         isToggled: () => { return this.prefs.show_error_messages},
-        execute: () => {
+        execute: async () => {
           this.setPreference('show_error_messages', !this.prefs.show_error_messages);
         } 
       },
@@ -749,12 +777,36 @@ class Linter {
     this.mainMenu.viewMenu.addGroup(Object.keys(commands).map(key => {return {command: key} }), 30);
   }
 
+    /**
+   * Turn linting on/off
+   */
+  private toggle_linter(){
+    if (this.prefs.toggled) {
+      this.load_linter();
+    } else {
+      this.dispose_linter();
+    }
+  }
+
+  /**
+   * Turn error messages on/off
+   */
+  private toggle_error_messages(){
+    if (!this.prefs.show_error_messages) {
+      this.clear_error_messages();
+    } else if (this.cache && this.cache.length > 0) {
+      this.cache.forEach((mark) => {
+        this.mark_line(mark.doc, mark.from, mark.to, mark.message);
+      });
+    }
+  }
+
   /**
    * Save state preferences
    */
-  private setPreference(key:string, val:any) {
+  private async setPreference(key:string, val:any) {
 
-    Promise.all([this.settingRegistry.load(this.settingsKey), this.app.restored])
+    await Promise.all([this.settingRegistry.load(this.settingsKey), this.app.restored])
       .then(([settings]) => {
         settings.set(key, val); // will automatically call update
       });

@@ -33,6 +33,11 @@
       "type": "string",
       "description": "Conda environment to use for flake8 linter",
       "default": "base"
+    },
+    "terminal_name": {
+      "type": "string",
+      "description": "Persistent internal terminal name. This is set automatically on each run",
+      "default": ""
     }
   },
   "additionalProperties": false,
