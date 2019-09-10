@@ -360,6 +360,19 @@ class Linter {
   private lint_cmd(contents:string): string {
     let escaped = contents.replace(/["`]/g,'\\$&');
     escaped = escaped.replace('\r','');  // replace carriage returns
+
+    // ignore magics by commenting
+    escaped = escaped
+      .split('\n')
+      .map((line:string) => {
+        if (line.indexOf('%%') > -1) {
+          return `# ${line}`;
+        } else {
+          return line;
+        }
+      })
+      .join('\n');
+
     return `(echo "${escaped}" | flake8 --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`
   }
 
@@ -561,7 +574,7 @@ class Linter {
     this.termTimeoutHandle = setTimeout(() => {
       if (this.linting = true) {
         this.log('lint command timed out');
-        alert('jupyterlab-flake8 ran into an issue connecting with the terminal. Please try re-enabling the linter');
+        alert('jupyterlab-flake8 ran into an issue connecting with the terminal. Please try reloading the browser or re-installing the jupyterlab-flake8 extension.');
         this.lint_cleanup();
         this.dispose_linter();
         this.prefs.toggled = false;
@@ -625,12 +638,6 @@ class Linter {
    * @param {string} message [description]
    */
   private get_mark(line:number, ch:number, message:string) {
-
-    // ignore magics
-    if (message[0] === '%' && message[1] === '%') {
-      return;
-    }
-
     let doc, from, to;
     try {
       if (this.process_mark && typeof(this.process_mark) === 'function') {
