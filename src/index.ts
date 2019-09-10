@@ -19,7 +19,8 @@ import {
 } from '@jupyterlab/fileeditor';
 
 import {
-  IStateDB
+  IStateDB,
+  ISettingRegistry
 } from '@jupyterlab/coreutils';
 
 import {
@@ -43,11 +44,12 @@ import '../style/index.css';
 const id = `jupyterlab-flake8`;
 
 class Preferences {
-  toggled:Boolean = true;                // turn on/off linter
-  logging:Boolean = false;               // turn on/off logging
+  toggled:Boolean = true;               // turn on/off linter
+  logging:Boolean = false;              // turn on/off logging
   highlight_color:string = 'yellow';    // color of highlights
-  show_error_messages: Boolean = true;    // show error message
-  termTimeout:number = 5000;             // seconds before the temrinal times out if it has not received a message
+  show_error_messages: Boolean = true;  // show error message
+  term_timeout:number = 5000;           // seconds before the temrinal times out if it has not received a message
+  conda_env:string = 'base';             // conda environment
 }
 /**
  * Linter
@@ -62,6 +64,7 @@ class Linter {
   term: Terminal;
   
   prefsKey = `${id}:preferences`;
+  settingsKey = `${id}:plugins`;
 
   // Default Options
   prefs =  new Preferences();
@@ -87,15 +90,16 @@ class Linter {
   bookmarks: Array<any> = [];         // text marker objects currently active
   text: string = '';                // current nb text
   process_mark: Function;           // default line marker processor
-  env: string = undefined;             // conda environment
   os: string = undefined;             // operating system
-
+  settingRegistry: ISettingRegistry;// settings
+  
   constructor(app: JupyterFrontEnd, 
               notebookTracker: INotebookTracker,
               editorTracker: IEditorTracker,
               palette: ICommandPalette, 
               mainMenu: IMainMenu,
               state: IStateDB,
+              settingRegistry: ISettingRegistry
               ){
    
     this.app = app;
@@ -104,6 +108,7 @@ class Linter {
     this.editorTracker = editorTracker;
     this.palette = palette;
     this.state = state;
+    this.settingRegistry = settingRegistry;
 
     // Load the saved plugin state and apply it once the app
     // has finished restoring its former layout.  
@@ -115,6 +120,22 @@ class Linter {
             (<any>this.prefs)[key] = (<any>prefs)[key];
           });
           this.log(`loaded preferences`);
+
+          // load settings from the registry
+          Promise.all([this.settingRegistry.load(this.settingsKey), app.restored])
+            .then(([settings]) => {
+              Object.keys(settings.user).forEach((key:string) => {
+                (<any>this.prefs)[key] = (<any>settings.user)[key];
+              });
+              this.log(`loaded settings`);
+              console.log(this.prefs);
+
+              // if the linter is enabled, load it
+              if (this.prefs.toggled) {
+                this.load_linter();
+              }
+            });
+
         } catch(e) {
           this.log(`Failed to load preferences`);
         }
@@ -128,11 +149,6 @@ class Linter {
 
     // add menu item
     this.add_commands();
-
-    // if the linter is enabled, load it
-    if (this.prefs.toggled) {
-      this.load_linter();
-    }
   }
 
   /**
@@ -151,39 +167,21 @@ class Linter {
     let session = await this.app.serviceManager.terminals.startNew();
     this.term = new Terminal(session, {initialCommand: `echo "Opening flake8 terminal"`});
 
-    // activate specific conda environment
-    function _setEnv(sender:any, msg: any) {
-      if (msg.content) {
-        let message:string = msg.content[0] as string;
-
-        // throw away non-strings
-        if (typeof(message) !== 'string') {
-          return;
-        }
-
-        if (message.indexOf('command not found') > -1 ) {
-          this.log(`conda was not found on this machine`);
-          this.term.session.messageReceived.disconnect(_setEnv, this);
-          this.finish_load();
-        }
-
-        // set conda env
-        if (message.indexOf('(') > -1 && message.indexOf(')') > -1) {
-          this.env = message.split('(')[1].split(')')[0];
-          this.log(`conda environment: ${this.env}`);
-
-          this.term.session.messageReceived.disconnect(_setEnv, this);
-          this.term.session.messageReceived.connect(_setOS, this);
-
-          // ask for OS
-          this.term.session.send({type: 'stdin', content: [`python -c "import os; print(os.name)"\r`]});
-        }
-      }
+    // custom conda-env
+    if (this.prefs.conda_env !== 'base') {
+      this.setEnv();
+    } else {
+      this.finish_load();
     }
-    function _setOS(sender:any, msg: any) {
+  }
+
+  // activate specific conda environment
+  setEnv() {
+
+    function _getOS(sender:any, msg: any) {
       if (msg.content) {
         let message:string = msg.content[0] as string;
-
+        console.log(message);
         // throw away non-strings
         if (typeof(message) !== 'string') {
           return;
@@ -191,7 +189,7 @@ class Linter {
 
         if (message.indexOf('command not found') > -1 ) {
           this.log(`python command failed on this machine`);
-          this.term.session.messageReceived.disconnect(_setOS, this);
+          this.term.session.messageReceived.disconnect(_getOS, this);
           this.finish_load();
         }
 
@@ -200,15 +198,16 @@ class Linter {
           this.os = message.split('\n')[0];
           this.log(`os: ${this.os}`);
 
-          // disconnect
-          this.term.session.messageReceived.disconnect(_setOS, this);
-
           // activate environment
-          if (this.env && this.os === 'posix') {
-            this.term.session.send({type: 'stdin', content: [`source activate ${this.env}\r`]});
-          } else if (this.env && this.os !== 'posix') {
-            this.term.session.send({type: 'stdin', content: [`activate ${this.env}\r`]});
+          this.log(`env: ${this.prefs.conda_env}`);
+          if (this.prefs.conda_env && this.os.indexOf('posix') > -1) {
+            this.term.session.send({type: 'stdin', content: [`source activate ${this.prefs.conda_env}\r`]});
+          } else if (this.prefs.conda_env && this.os.indexOf('posix') === -1) {
+            this.term.session.send({type: 'stdin', content: [`activate ${this.prefs.conda_env}\r`]});
           }
+
+          // disconnect
+          // this.term.session.messageReceived.disconnect(_getOS, this);
 
           // finish
           this.finish_load();
@@ -216,12 +215,13 @@ class Linter {
       }
     }
 
-    // wait a moment for terminal to load and get initial commands out
+    // wait a moment for terminal to load and then ask for OS
     setTimeout(() => {
-      this.term.session.messageReceived.connect(_setEnv, this);
-      this.term.session.send({type: 'stdin', content: [`conda env list\r`]});
+      this.term.session.messageReceived.connect(_getOS, this);
+      this.term.session.send({type: 'stdin', content: [`python -c "import os; print(os.name)"\r`]});
     }, 1000);
   }
+  
 
   finish_load() {
     try {
@@ -542,7 +542,7 @@ class Linter {
         this.dispose_linter();
         this.prefs.toggled = false;
       }
-    }, this.prefs.termTimeout)
+    }, this.prefs.term_timeout)
   }
 
   /**
@@ -573,7 +573,7 @@ class Linter {
 
       // if message a is a reflection of the command, return
       if (message.indexOf('command not found') > -1 ) {
-        alert(`Flake8 was not found in this python distribution. \n\nInstall with 'pip install flake8' or 'conda install flake8' and reload the jupyterlab window`);
+        alert(`Flake8 was not found in this python environment. \n\nIf you are using a conda environment, set the 'conda_env' setting in the Advanced Settings menu and reload the Jupyter Lab window.\n\nIf you are not using a conda environment, Install Flake8 with 'pip install flake8' or 'conda install flake8' and reload the Jupyter Lab window`);
         this.lint_cleanup();
         return;
       }
@@ -761,7 +761,7 @@ class Linter {
           this.prefs.logging = !this.prefs.logging;
           this.savePreferences();
         } 
-      },
+      }
     };
 
     // add commands to menus and palette
@@ -793,10 +793,11 @@ function activate(app: JupyterFrontEnd,
                   editorTracker: IEditorTracker,
                   palette: ICommandPalette, 
                   mainMenu: IMainMenu,
-                  state: IStateDB
+                  state: IStateDB,
+                  settingRegistry: ISettingRegistry
                   ) {
 
-  new Linter(app, notebookTracker, editorTracker, palette, mainMenu, state);
+  new Linter(app, notebookTracker, editorTracker, palette, mainMenu, state, settingRegistry);
 
 };
 
@@ -808,7 +809,7 @@ const extension: JupyterFrontEndPlugin<void> = {
   id: 'jupyterlab-flake8',
   autoStart: true,
   activate: activate,
-  requires: [INotebookTracker, IEditorTracker, ICommandPalette, IMainMenu, IStateDB]
+  requires: [INotebookTracker, IEditorTracker, ICommandPalette, IMainMenu, IStateDB, ISettingRegistry]
 };
 
 export default extension;
