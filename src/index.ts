@@ -110,35 +110,15 @@ class Linter {
     this.state = state;
     this.settingRegistry = settingRegistry;
 
-    // Load the saved plugin state and apply it once the app
-    // has finished restoring its former layout.  
-    Promise.all([this.state.fetch(this.prefsKey), app.restored])
-      .then(([savedPrefs]) => {
-        try {
-          let prefs:Preferences = JSON.parse(<any>savedPrefs);
-          Object.keys(prefs).forEach((key:string) => {
-            (<any>this.prefs)[key] = (<any>prefs)[key];
-          });
-          this.log(`loaded preferences`);
+    // load settings from the registry
+    Promise.all([this.settingRegistry.load(this.settingsKey), app.restored])
+      .then(([settings]) => {
+        this.update_settings(settings);
 
-          // load settings from the registry
-          Promise.all([this.settingRegistry.load(this.settingsKey), app.restored])
-            .then(([settings]) => {
-              Object.keys(settings.user).forEach((key:string) => {
-                (<any>this.prefs)[key] = (<any>settings.user)[key];
-              });
-              this.log(`loaded settings`);
-              console.log(this.prefs);
-
-              // if the linter is enabled, load it
-              if (this.prefs.toggled) {
-                this.load_linter();
-              }
-            });
-
-        } catch(e) {
-          this.log(`Failed to load preferences`);
-        }
+        // update settings
+        settings.changed.connect((settings:ISettingRegistry.ISettings) => {
+          this.update_settings(settings);
+        });
       });
 
     // activate function when cell changes
@@ -149,6 +129,28 @@ class Linter {
 
     // add menu item
     this.add_commands();
+  }
+
+  update_settings(settings:ISettingRegistry.ISettings) {
+    Object.keys(settings.composite).forEach((key:string) => {
+      (<any>this.prefs)[key] = (<any>settings.composite)[key];
+    });
+    this.log(`loaded settings ${JSON.stringify(this.prefs)}`);
+
+    // if the linter is enabled, load it
+    if (this.prefs.toggled && !this.loaded) {
+      this.load_linter();
+    } else if (!this.prefs.toggled && this.loaded) {
+      this.dispose_linter();
+    }
+
+    if (!this.prefs.show_error_messages) {
+      this.clear_error_messages();
+    } else if (this.loaded && this.cache && this.cache.length > 0) {
+      this.cache.forEach((mark) => {
+        this.mark_line(mark.doc, mark.from, mark.to, mark.message);
+      });
+    }
   }
 
   /**
@@ -181,7 +183,6 @@ class Linter {
     function _getOS(sender:any, msg: any) {
       if (msg.content) {
         let message:string = msg.content[0] as string;
-        console.log(message);
         // throw away non-strings
         if (typeof(message) !== 'string') {
           return;
@@ -699,34 +700,6 @@ class Linter {
     console.log(output);
   }
 
-    /**
-   * Turn linting on/off
-   */
-  toggle_linter(){
-    this.prefs.toggled = !this.prefs.toggled;
-
-    if (this.prefs.toggled) {
-      this.load_linter();
-    } else {
-      this.dispose_linter();
-    }
-  }
-
-  /**
-   * Turn error messages on/off
-   */
-  toggle_error_messages(){
-    this.prefs.show_error_messages = !this.prefs.show_error_messages;
-
-    if (!this.prefs.show_error_messages) {
-      this.clear_error_messages();
-    } else if (this.cache && this.cache.length > 0) {
-      this.cache.forEach((mark) => {
-        this.mark_line(mark.doc, mark.from, mark.to, mark.message);
-      });
-    }
-  }
-
   /**
    * Create menu / command items
    */
@@ -740,8 +713,7 @@ class Linter {
         isEnabled: () => { return this.loaded},
         isToggled: () => { return this.prefs.toggled},
         execute: () => {
-          this.toggle_linter();
-          this.savePreferences();
+          this.setPreference('toggled', !this.prefs.toggled);
         } 
       },
       'flake8:show_error_messages': {
@@ -749,8 +721,7 @@ class Linter {
         isEnabled: () => { return this.loaded},
         isToggled: () => { return this.prefs.show_error_messages},
         execute: () => {
-          this.toggle_error_messages();
-          this.savePreferences();
+          this.setPreference('show_error_messages', !this.prefs.show_error_messages);
         } 
       },
       'flake8:show_browser_logs': {
@@ -758,8 +729,7 @@ class Linter {
         isEnabled: () => { return this.loaded},
         isToggled: () => { return this.prefs.logging},
         execute: () => {
-          this.prefs.logging = !this.prefs.logging;
-          this.savePreferences();
+          this.setPreference('logging', !this.prefs.logging);
         } 
       }
     };
@@ -777,9 +747,12 @@ class Linter {
   /**
    * Save state preferences
    */
-  private savePreferences() {
-    this.state.save(`${this.prefsKey}`, JSON.stringify(this.prefs));
-    this.log(`saved preferences: ${JSON.stringify(this.prefs)}`);
+  private setPreference(key:string, val:any) {
+
+    Promise.all([this.settingRegistry.load(this.settingsKey), this.app.restored])
+      .then(([settings]) => {
+        settings.set(key, val); // will automatically call update
+      });
   }
 
 }
