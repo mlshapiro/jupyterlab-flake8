@@ -36,6 +36,8 @@ When the extension is installed, the linter will automatically be toggled on and
 
 The linter will run on state change of the notebook or the text editor. State changes occur when the document is saved, the cell is changed, or on some carriage returns.
 
+## Settings
+
 Plugin is configured in the Jupyter Lab *Advanced Settings*.
 If you are using a specific conda environment, you must explicitly set this environment in the advanced settings.
 
@@ -50,7 +52,7 @@ Toggle shortcuts are also available in the view menu:
     
 <img src="img/options.png" width="300" /> <img src="img/commands.png" width="300" />
 
-## Configure
+## Configure Flake8
 
 The notebook linter is configured the same way as the `flake8` command line tool. See the [`flake8` project configuration documentation](http://flake8.pycqa.org/en/latest/user/configuration.html#project-configuration) for all options.
 
