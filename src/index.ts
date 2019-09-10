@@ -603,6 +603,11 @@ class Linter {
    */
   get_mark(line:number, ch:number, message:string) {
 
+    // ignore magics
+    if (message[0] === '%' && message[1] === '%') {
+      return;
+    }
+
     let doc, from, to;
     if (this.process_mark) {
       [doc, from, to] = this.process_mark(line, ch);
