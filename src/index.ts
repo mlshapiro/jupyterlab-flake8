@@ -231,7 +231,7 @@ class Linter {
           }
 
           // disconnect
-          // this.term.session.messageReceived.disconnect(_get_OS, this);
+          this.term.session.messageReceived.disconnect(_get_OS, this);
 
           // finish
           this.finish_load();
