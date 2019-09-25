@@ -11,7 +11,7 @@ Jupyterlab extension to lint python notebooks and python files in the text edito
 
 ## Prerequisites
 
-- JupyterLab >= 0.33
+- JupyterLab >= 1.x
 
 ```bash
 $ conda install -c conda-forge jupyterlab
