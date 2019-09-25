@@ -91,7 +91,7 @@ class Linter {
   bookmarks: Array<any> = [];         // text marker objects currently active
   text: string = '';                // current nb text
   process_mark: Function;           // default line marker processor
-  os: string = undefined;             // operating system
+  os: string = '';             // operating system
   settingRegistry: ISettingRegistry;// settings
   
   constructor(app: JupyterFrontEnd, 
@@ -187,22 +187,11 @@ class Linter {
     // save terminal name
     this.setPreference('terminal_name', session.name);
 
+    // start a new terminal session
     this.log(`set terminal_name to ${session.name}`);
-    this.term = new Terminal(session, {
-      initialCommand: `HISTFILE= ; echo "Opening flake8 terminal"`
-    });
+    this.term = new Terminal(session);
 
-    // custom conda-env
-    if (this.prefs.conda_env !== 'base') {
-      this.set_env();
-    } else {
-      this.finish_load();
-    }
-  }
-
-  // activate specific conda environment
-  private set_env() {
-
+    // get OS
     function _get_OS(sender:any, msg: any) {
       if (msg.content) {
         let message:string = msg.content[0] as string;
@@ -217,25 +206,21 @@ class Linter {
           this.finish_load();
         }
 
-        // set conda env
+        // set OS
         if (message.indexOf('posix') > -1) {
-          this.os = message.split('\n')[0];
-          this.log(`os: ${this.os}`);
-
-          // activate environment
-          this.log(`env: ${this.prefs.conda_env}`);
-          if (this.prefs.conda_env && this.os.indexOf('posix') > -1) {
-            this.term.session.send({type: 'stdin', content: [`source activate ${this.prefs.conda_env}\r`]});
-          } else if (this.prefs.conda_env && this.os.indexOf('posix') === -1) {
-            this.term.session.send({type: 'stdin', content: [`activate ${this.prefs.conda_env}\r`]});
-          }
-
-          // disconnect
-          // this.term.session.messageReceived.disconnect(_get_OS, this);
-
-          // finish
-          this.finish_load();
+          this.os = 'posix';
+        } else if (message.indexOf('nt(') === -1 && message.indexOf('nt') > -1) {
+          this.os = 'nt';
+        } else {
+          return;
         }
+        this.log(`os: ${this.os}`);
+
+        // disconnect the os listener and connect empty listener
+        this.term.session.messageReceived.disconnect(_get_OS, this);
+
+        // setup stage
+        this.setup_terminal();
       }
     }
 
@@ -244,8 +229,34 @@ class Linter {
       this.term.session.messageReceived.connect(_get_OS, this);
       this.term.session.send({type: 'stdin', content: [`python -c "import os; print(os.name)"\r`]});
     }, 1000);
+
   }
   
+  private setup_terminal() {
+
+    if (this.os === 'posix') {
+      this.term.session.send({type: 'stdin', content: [`HISTFILE= ;\r`]});
+    }
+
+    // custom conda-env
+    if (this.prefs.conda_env !== 'base') {
+      this.set_env();
+    } else {
+      this.finish_load();
+    }
+  }
+
+  // activate specific conda environment
+  private set_env() {
+    this.log(`conda env: ${this.prefs.conda_env}`);
+    if (this.os === 'posix') {
+      this.term.session.send({type: 'stdin', content: [`source activate ${this.prefs.conda_env}\r`]});
+    } else if (this.os !== 'posix') {
+      this.term.session.send({type: 'stdin', content: [`activate ${this.prefs.conda_env}\r`]});
+    }
+
+    this.finish_load();
+  }
 
   private finish_load() {
     try {
@@ -373,6 +384,11 @@ class Linter {
         }
       })
       .join('\n');
+
+    // remove final \n (#20)
+    if (escaped.endsWith('\n')) {
+      escaped = escaped.slice(0, -1);
+    }
 
     return `(echo "${escaped}" | flake8 --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`
   }
