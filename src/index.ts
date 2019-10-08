@@ -14,7 +14,7 @@ import {
   INotebookTracker
 } from '@jupyterlab/notebook';
 
-import { 
+import {
   IEditorTracker
 } from '@jupyterlab/fileeditor';
 
@@ -63,7 +63,7 @@ class Linter {
   mainMenu: IMainMenu;
   state: IStateDB;
   term: Terminal;
-  
+
   prefsKey = `${id}:preferences`;
   settingsKey = `${id}:plugins`;
 
@@ -93,16 +93,16 @@ class Linter {
   process_mark: Function;           // default line marker processor
   os: string = '';             // operating system
   settingRegistry: ISettingRegistry;// settings
-  
-  constructor(app: JupyterFrontEnd, 
+
+  constructor(app: JupyterFrontEnd,
               notebookTracker: INotebookTracker,
               editorTracker: IEditorTracker,
-              palette: ICommandPalette, 
+              palette: ICommandPalette,
               mainMenu: IMainMenu,
               state: IStateDB,
               settingRegistry: ISettingRegistry
               ){
-   
+
     this.app = app;
     this.mainMenu = mainMenu;
     this.notebookTracker = notebookTracker;
@@ -177,7 +177,7 @@ class Linter {
     // try to connect to previous terminal, if not start a new one
     // TODO: still can't set the name of a terminal, so for now saving the "new"
     // terminal name in the settings (#16)
-    let session = await this.app.serviceManager.terminals 
+    let session = await this.app.serviceManager.terminals
       .connectTo(this.prefs.terminal_name)
       .catch(() => {
         this.log(`starting new terminal session`);
@@ -231,7 +231,7 @@ class Linter {
     }, 1000);
 
   }
-  
+
   private setup_terminal() {
 
     if (this.os === 'posix') {
@@ -307,6 +307,21 @@ class Linter {
 
     // select the notebook
     this.notebook = this.notebookTracker.currentWidget.content;
+    // debugger;
+    // AGHH
+    this.notebook.widgets.forEach((widget: any) => {
+      const gutters = widget.inputArea.editorWidget.editor._config.gutters;
+      // debugger;
+      // const xx = widget.inputArea.editor.setOption("gutters", [
+      //   "CodeMirror-lintgutter"
+      // ]);
+      if (!gutters.includes("CodeMirror-lintgutter")) {
+        widget.inputArea.editorWidget.editor._config.gutters.push(
+          "CodeMirror-lintgutter"
+        );
+      }
+    });
+    // debugger;
 
     // run on cell changing
     // this.notebookTracker.activeCellChanged.disconnect(this.onActiveCellChanged, this);
@@ -364,7 +379,7 @@ class Linter {
 
   /**
    * Generate lint command
-   * 
+   *
    * @param  {string} contents - contents of the notebook ready to be linted
    * @return {string} [description]
    */
@@ -478,7 +493,7 @@ class Linter {
 
     // load notebook
     this.cells = this.notebook.widgets;
-    
+
     this.log('getting notebook text');
 
     // return text from each cell if its a code cell
@@ -543,7 +558,7 @@ class Linter {
     if (!loc) {
       return;
     }
-   
+
     let from = {line: loc.line, ch: ch};
     let to = {line: loc.line, ch: ch+1};
 
@@ -689,7 +704,21 @@ class Linter {
    * @param {any}    to      [description]
    * @param {string} message [description]
    */
-  private mark_line(doc:any, from:any, to:any, message:string) {
+  private mark_line(doc: any, from: any, to: any, message: string) {
+    function makeMarker() {
+      var marker = document.createElement("div");
+      // marker.id = "fuck-bang";
+      marker.innerHTML = `<div class='jupyterlab-flake8-lint-gutter-container'>
+        <div>◉</div><div class='jupyterlab-flake8-lint-gutter-message'>${message}</div>
+      </div>`;
+      return marker;
+    }
+    const x = doc.cm.setGutterMarker(
+      from.line,
+      "CodeMirror-lintgutter",
+      makeMarker()
+    );
+    console.log(x, "/uGHgG");
 
     // mark the text
     this.marks.push(doc.markText(from, to,
@@ -707,7 +736,7 @@ class Linter {
       let lint_alert = document.createElement('span');
       let lint_message = document.createTextNode(`------ ${message}`);
       lint_alert.appendChild(lint_message);
-      lint_alert.className = 'jupyterlab-flake8-lint-message';  
+      lint_alert.className = 'jupyterlab-flake8-lint-message';
 
       // add error alert node to the 'to' location
       this.bookmarks.push(
@@ -718,7 +747,7 @@ class Linter {
     // this.bookmarks.push(doc.setBookmark({line: loc.lin, ch: ch}, {
     //   widget: lint_alert
     // }));
-    // 
+    //
 
     // window debugging
     // (<any>window).editor = editor;
@@ -733,7 +762,7 @@ class Linter {
    */
   private lint_cleanup() {
     this.linting = false;
-    // this.process_mark = undefined;  
+    // this.process_mark = undefined;
   }
 
   /**
@@ -771,7 +800,7 @@ class Linter {
         isToggled: () => { return this.prefs.toggled},
         execute: async () => {
           this.setPreference('toggled', !this.prefs.toggled);
-        } 
+        }
       },
       'flake8:show_error_messages': {
         label: "Show Flake8 Error Messages",
@@ -779,7 +808,7 @@ class Linter {
         isToggled: () => { return this.prefs.show_error_messages},
         execute: async () => {
           this.setPreference('show_error_messages', !this.prefs.show_error_messages);
-        } 
+        }
       },
       'flake8:show_browser_logs': {
         label: "Output Flake8 Browser Console Logs",
@@ -787,7 +816,7 @@ class Linter {
         isToggled: () => { return this.prefs.logging},
         execute: () => {
           this.setPreference('logging', !this.prefs.logging);
-        } 
+        }
       }
     };
 
@@ -842,10 +871,11 @@ class Linter {
 /**
  * Activate extension
  */
-function activate(app: JupyterFrontEnd, 
+<<<<<<< Updated upstream
+function activate(app: JupyterFrontEnd,
                   notebookTracker: INotebookTracker,
                   editorTracker: IEditorTracker,
-                  palette: ICommandPalette, 
+                  palette: ICommandPalette,
                   mainMenu: IMainMenu,
                   state: IStateDB,
                   settingRegistry: ISettingRegistry
@@ -855,6 +885,29 @@ function activate(app: JupyterFrontEnd,
 
 };
 
+=======
+function activate(
+  app: JupyterFrontEnd,
+  notebookTracker: INotebookTracker,
+  editorTracker: IEditorTracker,
+  palette: ICommandPalette,
+  mainMenu: IMainMenu,
+  state: IStateDB,
+  settingRegistry: ISettingRegistry
+) {
+  // debugger;
+  // console.log("fuck");
+  new Linter(
+    app,
+    notebookTracker,
+    editorTracker,
+    palette,
+    mainMenu,
+    state,
+    settingRegistry
+  );
+}
+>>>>>>> Stashed changes
 
 /**
  * Initialization data for the jupyterlab-flake8 extension.
