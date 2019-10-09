@@ -1,9 +1,7 @@
-
-
-.jupyterlab-flake8-lint-message span { 
-    display: none 
+.jupyterlab-flake8-lint-message span {
+  display: none;
 }
 
-.jupyterlab-flake8-lint-message span:hover { 
-    display: block
+.jupyterlab-flake8-lint-message span:hover {
+  display: block;
 }

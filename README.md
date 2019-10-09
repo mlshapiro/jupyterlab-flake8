@@ -8,7 +8,6 @@ Jupyterlab extension to lint python notebooks and python files in the text edito
 
 <img src="img/editor-example.png" />
 
-
 ## Prerequisites
 
 - JupyterLab >= 1.x
@@ -32,24 +31,24 @@ jupyter labextension install jupyterlab-flake8
 
 ## Usage
 
-When the extension is installed, the linter will automatically be toggled on and configured to show error messages.  The linter will run when you change cells.
+When the extension is installed, the linter will automatically be toggled on and configured to show error messages. The linter will run when you change cells.
 
 The linter will run on state change of the notebook or the text editor. State changes occur when the document is saved, the cell is changed, or on some carriage returns.
 
 ## Settings
 
-Plugin is configured in the Jupyter Lab *Advanced Settings*.
+Plugin is configured in the Jupyter Lab _Advanced Settings_.
 If you are using a specific conda environment, you must explicitly set this environment in the `conda_env` variable of the plugin settings.
 
 Toggle shortcuts are also available in the view menu:
 
 - Enable Flake8
-    + Turns on or off linting in the notebook
+  - Turns on or off linting in the notebook
 - Show Error Messages
-    + Shows Flake8 Error messages under the line in the notebook
+  - Shows Flake8 Error messages under the line in the notebook
 - Output Flake8 Browser Console Logs
-    + Turn on browser console logs for debugging the extension
-    
+  - Turn on browser console logs for debugging the extension
+
 <img src="img/options.png" width="300" />
 
 ## Configure Flake8
@@ -63,7 +62,7 @@ As an example, if you want to ignore certain warnings:
 
 ```ini
 [flake8]
-ignore = 
+ignore =
     F812,   # list comprehension redefines
     H101    # Use TODO(NAME)
 exclude =
@@ -75,7 +74,6 @@ max-complexity = 10
 ```
 
 The `flake8` linter will then use this configuration in the notebook.
-
 
 ## TODO
 
