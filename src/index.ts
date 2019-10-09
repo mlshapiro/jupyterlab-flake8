@@ -314,25 +314,17 @@ class Linter {
 
     // select the notebook
     this.notebook = this.notebookTracker.currentWidget.content;
-    // debugger;
-    // AGHH
-    this.notebook.widgets.forEach((widget: any) => {
-      const gutters = widget.inputArea.editorWidget.editor._config.gutters;
-      // debugger;
-      // const xx = widget.inputArea.editor.setOption("gutters", [
-      //   "CodeMirror-lintgutter"
-      // ]);
-      if (!gutters.includes("CodeMirror-lintgutter")) {
-        widget.inputArea.editorWidget.editor._config.gutters.push(
-          "CodeMirror-lintgutter"
-        );
-      }
-    });
-    // debugger;
+    this.checkGutters();
 
     // run on cell changing
-    // this.notebookTracker.activeCellChanged.disconnect(this.onActiveCellChanged, this);
-    // this.notebookTracker.activeCellChanged.connect(this.onActiveCellChanged, this);
+    this.notebookTracker.activeCellChanged.disconnect(
+      this.onActiveCellChanged,
+      this
+    );
+    this.notebookTracker.activeCellChanged.connect(
+      this.onActiveCellChanged,
+      this
+    );
 
     // run on stateChanged
     this.notebook.model.stateChanged.disconnect(this.onActiveCellChanged, this);
@@ -350,6 +342,7 @@ class Linter {
         this.log("flake8 is already running onActiveCellChanged");
       }
     }
+    this.checkGutters();
   }
 
   /**
@@ -380,6 +373,20 @@ class Linter {
         this.log("flake8 is already running onEditorChanged");
       }
     }
+  }
+
+  private checkGutters(): void {
+    this.notebook.widgets.forEach((widget: any) => {
+      const editor = widget.inputArea.editor;
+      const lineNumbers = editor._config.lineNumbers;
+      const codeFolding = editor._config.codeFolding;
+      const gutters = [
+        lineNumbers && "CodeMirror-linenumbers",
+        codeFolding && "CodeMirror-foldgutter",
+        "CodeMirror-lintgutter"
+      ].filter(d => d);
+      editor.editor.setOption("gutters", gutters);
+    });
   }
 
   /**
@@ -724,12 +731,7 @@ class Linter {
       </div>`;
       return marker;
     }
-    const x = doc.cm.setGutterMarker(
-      from.line,
-      "CodeMirror-lintgutter",
-      makeMarker()
-    );
-    console.log(x, "/uGHgG");
+    doc.cm.setGutterMarker(from.line, "CodeMirror-lintgutter", makeMarker());
 
     // mark the text
     this.marks.push(
@@ -907,8 +909,6 @@ function activate(
   state: IStateDB,
   settingRegistry: ISettingRegistry
 ) {
-  // debugger;
-  // console.log("fuck");
   new Linter(
     app,
     notebookTracker,
