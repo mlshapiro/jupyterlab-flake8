@@ -1,30 +1,30 @@
 import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
-} from "@jupyterlab/application";
+} from '@jupyterlab/application';
 
-import { ICommandPalette } from "@jupyterlab/apputils";
+import { ICommandPalette } from '@jupyterlab/apputils';
 
-import { IMainMenu } from "@jupyterlab/mainmenu";
+import { IMainMenu } from '@jupyterlab/mainmenu';
 
-import { INotebookTracker } from "@jupyterlab/notebook";
+import { INotebookTracker } from '@jupyterlab/notebook';
 
-import { IEditorTracker } from "@jupyterlab/fileeditor";
+import { IEditorTracker } from '@jupyterlab/fileeditor';
 
-import { IStateDB, ISettingRegistry } from "@jupyterlab/coreutils";
+import { IStateDB, ISettingRegistry } from '@jupyterlab/coreutils';
 
-import { Terminal } from "@jupyterlab/terminal";
+import { Terminal } from '@jupyterlab/terminal';
 
 import {
   Cell // ICellModel
-} from "@jupyterlab/cells";
+} from '@jupyterlab/cells';
 
-import { CodeMirrorEditor } from "@jupyterlab/codemirror";
+import { CodeMirrorEditor } from '@jupyterlab/codemirror';
 
-import * as CodeMirror from "codemirror";
+import * as CodeMirror from 'codemirror';
 
 // CSS
-import "../style/index.css";
+import '../style/index.css';
 
 // extension id
 const id = `jupyterlab-flake8`;
@@ -75,9 +75,9 @@ class Linter {
   cache: Array<any> = []; // cache for messages
   marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
   docs: Array<any> = []; // text marker objects currently active
-  text: string = ""; // current nb text
+  text: string = ''; // current nb text
   process_mark: Function; // default line marker processor
-  os: string = ""; // operating system
+  os: string = ''; // operating system
   settingRegistry: ISettingRegistry; // settings
 
   constructor(
@@ -157,7 +157,7 @@ class Linter {
     // Bail if there are no terminals available.
     if (!this.app.serviceManager.terminals.isAvailable()) {
       this.log(
-        "Disabling jupyterlab-flake8 plugin because it cant access terminal"
+        'Disabling jupyterlab-flake8 plugin because it cant access terminal'
       );
       this.loaded = false;
       this.prefs.toggled = false;
@@ -175,7 +175,7 @@ class Linter {
       });
 
     // save terminal name
-    this.setPreference("terminal_name", session.name);
+    this.setPreference('terminal_name', session.name);
 
     // start a new terminal session
     this.log(`set terminal_name to ${session.name}`);
@@ -186,24 +186,24 @@ class Linter {
       if (msg.content) {
         let message: string = msg.content[0] as string;
         // throw away non-strings
-        if (typeof message !== "string") {
+        if (typeof message !== 'string') {
           return;
         }
 
-        if (message.indexOf("command not found") > -1) {
+        if (message.indexOf('command not found') > -1) {
           this.log(`python command failed on this machine`);
           this.term.session.messageReceived.disconnect(_get_OS, this);
           this.finish_load();
         }
 
         // set OS
-        if (message.indexOf("posix") > -1) {
-          this.os = "posix";
+        if (message.indexOf('posix') > -1) {
+          this.os = 'posix';
         } else if (
-          message.indexOf("nt(") === -1 &&
-          message.indexOf("nt") > -1
+          message.indexOf('nt(') === -1 &&
+          message.indexOf('nt') > -1
         ) {
-          this.os = "nt";
+          this.os = 'nt';
         } else {
           return;
         }
@@ -221,19 +221,19 @@ class Linter {
     setTimeout(() => {
       this.term.session.messageReceived.connect(_get_OS, this);
       this.term.session.send({
-        type: "stdin",
+        type: 'stdin',
         content: [`python -c "import os; print(os.name)"\r`]
       });
     }, 1000);
   }
 
   private setup_terminal() {
-    if (this.os === "posix") {
-      this.term.session.send({ type: "stdin", content: [`HISTFILE= ;\r`] });
+    if (this.os === 'posix') {
+      this.term.session.send({ type: 'stdin', content: [`HISTFILE= ;\r`] });
     }
 
     // custom conda-env
-    if (this.prefs.conda_env !== "base") {
+    if (this.prefs.conda_env !== 'base') {
       this.set_env();
     } else {
       this.finish_load();
@@ -243,14 +243,14 @@ class Linter {
   // activate specific conda environment
   private set_env() {
     this.log(`conda env: ${this.prefs.conda_env}`);
-    if (this.os === "posix") {
+    if (this.os === 'posix') {
       this.term.session.send({
-        type: "stdin",
+        type: 'stdin',
         content: [`source activate ${this.prefs.conda_env}\r`]
       });
-    } else if (this.os !== "posix") {
+    } else if (this.os !== 'posix') {
       this.term.session.send({
-        type: "stdin",
+        type: 'stdin',
         content: [`activate ${this.prefs.conda_env}\r`]
       });
     }
@@ -331,7 +331,7 @@ class Linter {
       if (!this.linting) {
         this.lint_notebook();
       } else {
-        this.log("flake8 is already running onActiveCellChanged");
+        this.log('flake8 is already running onActiveCellChanged');
       }
     }
     this.checkGutters();
@@ -362,7 +362,7 @@ class Linter {
       if (!this.linting) {
         this.lint_editor();
       } else {
-        this.log("flake8 is already running onEditorChanged");
+        this.log('flake8 is already running onEditorChanged');
       }
     }
   }
@@ -373,11 +373,11 @@ class Linter {
       const lineNumbers = editor._config.lineNumbers;
       const codeFolding = editor._config.codeFolding;
       const gutters = [
-        lineNumbers && "CodeMirror-linenumbers",
-        codeFolding && "CodeMirror-foldgutter",
-        "CodeMirror-lintgutter"
+        lineNumbers && 'CodeMirror-linenumbers',
+        codeFolding && 'CodeMirror-foldgutter',
+        'CodeMirror-lintgutter'
       ].filter(d => d);
-      editor.editor.setOption("gutters", gutters);
+      editor.editor.setOption('gutters', gutters);
     });
   }
 
@@ -388,24 +388,24 @@ class Linter {
    * @return {string} [description]
    */
   private lint_cmd(contents: string): string {
-    let escaped = contents.replace(/["`\\]/g, "\\$&");
+    let escaped = contents.replace(/["`\\]/g, '\\$&');
     // escaped = contents.replace(/[\\]/g,'\\$&');   // escape escapes
-    escaped = escaped.replace("\r", ""); // replace carriage returns
+    escaped = escaped.replace('\r', ''); // replace carriage returns
 
     // ignore magics by commenting
     escaped = escaped
-      .split("\n")
+      .split('\n')
       .map((line: string) => {
-        if (line.indexOf("%%") > -1) {
+        if (line.indexOf('%%') > -1) {
           return `# ${line}`;
         } else {
           return line;
         }
       })
-      .join("\n");
+      .join('\n');
 
     // remove final \n (#20)
-    if (escaped.endsWith("\n")) {
+    if (escaped.endsWith('\n')) {
       escaped = escaped.slice(0, -1);
     }
 
@@ -450,10 +450,10 @@ class Linter {
 
     // catch if file is not a .py file
     if (
-      this.editor.context.path.indexOf(".py") > -1 ||
-      this.editor.model._defaultLang === "python"
+      this.editor.context.path.indexOf('.py') > -1 ||
+      this.editor.model._defaultLang === 'python'
     ) {
-      this.log("getting editor text from python file");
+      this.log('getting editor text from python file');
     } else {
       this.log(`not python default lang`);
       this.lint_cleanup();
@@ -496,13 +496,13 @@ class Linter {
     // load notebook
     this.cells = this.notebook.widgets;
 
-    this.log("getting notebook text");
+    this.log('getting notebook text');
 
     // return text from each cell if its a code cell
     this.cell_text = this.cells.map(
       (cell: any, cell_idx: number, cell_arr: any[]) => {
         if (
-          cell.model.type === "code" &&
+          cell.model.type === 'code' &&
           this.text_exists(cell.model.value.text)
         ) {
           // append \n\n if its not the last cell
@@ -512,7 +512,7 @@ class Linter {
             return cell.model.value.text;
           }
         } else {
-          return "";
+          return '';
         }
       }
     );
@@ -523,7 +523,7 @@ class Linter {
     this.cell_text.map((cell: any, cell_idx: number, cell_arr: any[]) => {
       // if there is text in the cell,
       if (this.text_exists(cell)) {
-        let lines = cell.split("\n");
+        let lines = cell.split('\n');
         for (let idx = 0; idx < lines.length - 1; idx++) {
           this.lookup[line] = {
             cell: cell_idx,
@@ -543,7 +543,7 @@ class Linter {
     });
 
     // join cells with text with two new lines
-    let pytext = this.cell_text.join("");
+    let pytext = this.cell_text.join('');
 
     // run linter
     this.lint(pytext);
@@ -586,14 +586,14 @@ class Linter {
       this.text = pytext;
     } else {
       // text has not changed
-      this.log("text unchanged");
+      this.log('text unchanged');
       this.lint_cleanup();
       return;
     }
 
     // TODO: handle if text is empty (any combination of '' and \n)
     if (!this.text_exists(this.text)) {
-      this.log("text empty");
+      this.log('text empty');
       this.lint_cleanup();
       return;
     }
@@ -602,15 +602,15 @@ class Linter {
     this.clear_marks();
 
     // get lint command to run in terminal and send to terminal
-    this.log("preparing lint command");
+    this.log('preparing lint command');
     let lint_cmd = this.lint_cmd(pytext);
-    this.log("sending lint command");
-    this.term.session.send({ type: "stdin", content: [`${lint_cmd}\r`] });
+    this.log('sending lint command');
+    this.term.session.send({ type: 'stdin', content: [`${lint_cmd}\r`] });
     this.termTimeoutHandle = setTimeout(() => {
       if ((this.linting = true)) {
-        this.log("lint command timed out");
+        this.log('lint command timed out');
         alert(
-          "jupyterlab-flake8 ran into an issue connecting with the terminal. Please try reloading the browser or re-installing the jupyterlab-flake8 extension."
+          'jupyterlab-flake8 ran into an issue connecting with the terminal. Please try reloading the browser or re-installing the jupyterlab-flake8 extension.'
         );
         this.lint_cleanup();
         this.dispose_linter();
@@ -631,7 +631,7 @@ class Linter {
       let message: string = msg.content[0] as string;
 
       // catch non-strings
-      if (typeof message !== "string") {
+      if (typeof message !== 'string') {
         return;
       }
 
@@ -639,7 +639,7 @@ class Linter {
       this.log(`terminal message: ${message}`);
 
       // if message a is a reflection of the command, return
-      if (message.indexOf("Traceback") > -1) {
+      if (message.indexOf('Traceback') > -1) {
         alert(
           `Flake8 encountered a python error. Make sure flake8 is installed and on the system path. \n\nTraceback: ${message}`
         );
@@ -648,7 +648,7 @@ class Linter {
       }
 
       // if message a is a reflection of the command, return
-      if (message.indexOf("command not found") > -1) {
+      if (message.indexOf('command not found') > -1) {
         alert(
           `Flake8 was not found in this python environment. \n\nIf you are using a conda environment, set the 'conda_env' setting in the Advanced Settings menu and reload the Jupyter Lab window.\n\nIf you are not using a conda environment, Install Flake8 with 'pip install flake8' or 'conda install flake8' and reload the Jupyter Lab window`
         );
@@ -656,16 +656,16 @@ class Linter {
         return;
       }
 
-      message.split("\n").forEach(m => {
-        if (m.includes("stdin:")) {
-          let idxs = m.split(":");
+      message.split('\n').forEach(m => {
+        if (m.includes('stdin:')) {
+          let idxs = m.split(':');
           let line = parseInt(idxs[1]);
           let ch = parseInt(idxs[2]);
           this.get_mark(line, ch, idxs[3]);
         }
       });
 
-      if (message.indexOf("jupyterlab-flake8 finished linting") > -1) {
+      if (message.indexOf('jupyterlab-flake8 finished linting') > -1) {
         this.lint_cleanup();
       }
     }
@@ -680,7 +680,7 @@ class Linter {
   private get_mark(line: number, ch: number, message: string) {
     let doc, from, to;
     try {
-      if (this.process_mark && typeof this.process_mark === "function") {
+      if (this.process_mark && typeof this.process_mark === 'function') {
         [doc, from, to] = this.process_mark(line, ch);
       }
     } catch (e) {
@@ -712,29 +712,26 @@ class Linter {
    * @param {string} message [description]
    */
   private mark_line(doc: any, from: any, to: any, message: string) {
-
     let gutter_color = this.prefs.gutter_color;
 
     // gutter marker
     function makeMarker() {
-      let marker = document.createElement("div");
+      let marker = document.createElement('div');
       marker.innerHTML = `<div class='jupyterlab-flake8-lint-gutter-container' style='color: ${gutter_color}''>
         <div>◉</div><div class='jupyterlab-flake8-lint-gutter-message'>${message}</div>
       </div>`;
       return marker;
     }
-  
+
     // store gutter marks for later
-    doc.cm.setGutterMarker(from.line, "CodeMirror-lintgutter", makeMarker());
-    this.docs.push(
-      doc.cm
-    );
+    doc.cm.setGutterMarker(from.line, 'CodeMirror-lintgutter', makeMarker());
+    this.docs.push(doc.cm);
 
     // mark the text
     this.marks.push(
       doc.markText(from, to, {
         // replacedWith: selected_char_node,
-        className: "jupyterlab-flake8-lint-message",
+        className: 'jupyterlab-flake8-lint-message',
         css: `
           background-color: ${this.prefs.highlight_color}
         `
@@ -761,7 +758,7 @@ class Linter {
     }
 
     // convert object messages to strings
-    if (typeof msg === "object") {
+    if (typeof msg === 'object') {
       msg = JSON.stringify(msg);
     }
 
@@ -774,12 +771,12 @@ class Linter {
    * Create menu / command items
    */
   add_commands() {
-    let category = "Flake8";
+    let category = 'Flake8';
 
     // define all commands
     let commands: any = {
-      "flake8:toggle": {
-        label: "Enable Flake8",
+      'flake8:toggle': {
+        label: 'Enable Flake8',
         isEnabled: () => {
           return this.loaded;
         },
@@ -787,11 +784,11 @@ class Linter {
           return this.prefs.toggled;
         },
         execute: async () => {
-          this.setPreference("toggled", !this.prefs.toggled);
+          this.setPreference('toggled', !this.prefs.toggled);
         }
       },
-      "flake8:show_browser_logs": {
-        label: "Output Flake8 Browser Console Logs",
+      'flake8:show_browser_logs': {
+        label: 'Output Flake8 Browser Console Logs',
         isEnabled: () => {
           return this.loaded;
         },
@@ -799,7 +796,7 @@ class Linter {
           return this.prefs.logging;
         },
         execute: () => {
-          this.setPreference("logging", !this.prefs.logging);
+          this.setPreference('logging', !this.prefs.logging);
         }
       }
     };
@@ -870,7 +867,7 @@ function activate(
  * Initialization data for the jupyterlab-flake8 extension.
  */
 const extension: JupyterFrontEndPlugin<void> = {
-  id: "jupyterlab-flake8",
+  id: 'jupyterlab-flake8',
   autoStart: true,
   activate: activate,
   requires: [
