@@ -40,12 +40,12 @@ The linter will run on state change of the notebook or the text editor. State ch
 Plugin is configured in the Jupyter Lab _Advanced Settings_.
 If you are using a specific conda environment, you must explicitly set this environment in the `conda_env` variable of the plugin settings.
 
+<img src="img/settings.png" />
+
 Toggle shortcuts are also available in the view menu:
 
 - Enable Flake8
   - Turns on or off linting in the notebook
-- Show Error Messages
-  - Shows Flake8 Error messages under the line in the notebook
 - Output Flake8 Browser Console Logs
   - Turn on browser console logs for debugging the extension
 
