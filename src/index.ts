@@ -33,7 +33,7 @@ class Preferences {
   toggled: Boolean; // turn on/off linter
   logging: Boolean; // turn on/off logging
   highlight_color: string; // color of highlights
-  show_error_messages: Boolean; // show error message
+  gutter_color: string; // color of gutter icons
   term_timeout: number; // seconds before the temrinal times out if it has not received a message
   conda_env: string; // conda environment
   terminal_name: string; // persistent terminal to share between session
@@ -74,7 +74,7 @@ class Linter {
   // cache
   cache: Array<any> = []; // cache for messages
   marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
-  bookmarks: Array<any> = []; // text marker objects currently active
+  docs: Array<any> = []; // text marker objects currently active
   text: string = ""; // current nb text
   process_mark: Function; // default line marker processor
   os: string = ""; // operating system
@@ -147,14 +147,6 @@ class Linter {
     // toggle linter
     if (!first_load && old.toggled !== this.prefs.toggled) {
       this.toggle_linter();
-    }
-
-    // and error messages
-    if (
-      !first_load &&
-      old.show_error_messages !== this.prefs.show_error_messages
-    ) {
-      this.toggle_error_messages();
     }
   }
 
@@ -433,24 +425,20 @@ class Linter {
    * Clear all current marks from code mirror
    */
   private clear_marks() {
+    // clear marks
     this.marks.forEach((mark: CodeMirror.TextMarker) => {
       mark.clear();
     });
+    this.marks = [];
 
-    // clear error messages as well
-    this.clear_error_messages();
+    // clear gutter
+    this.docs.forEach((doc: any) => {
+      doc.clearGutter();
+    });
+    this.docs = [];
 
     // clear cache
     this.cache = [];
-  }
-
-  /**
-   * Clear all error messages
-   */
-  private clear_error_messages() {
-    this.bookmarks.forEach((bookmark: any) => {
-      bookmark.clear();
-    });
   }
 
   /**
@@ -724,14 +712,23 @@ class Linter {
    * @param {string} message [description]
    */
   private mark_line(doc: any, from: any, to: any, message: string) {
+
+    let gutter_color = this.prefs.gutter_color;
+
+    // gutter marker
     function makeMarker() {
-      var marker = document.createElement("div");
-      marker.innerHTML = `<div class='jupyterlab-flake8-lint-gutter-container'>
+      let marker = document.createElement("div");
+      marker.innerHTML = `<div class='jupyterlab-flake8-lint-gutter-container' style='color: ${gutter_color}''>
         <div>◉</div><div class='jupyterlab-flake8-lint-gutter-message'>${message}</div>
       </div>`;
       return marker;
     }
+  
+    // store gutter marks for later
     doc.cm.setGutterMarker(from.line, "CodeMirror-lintgutter", makeMarker());
+    this.docs.push(
+      doc.cm
+    );
 
     // mark the text
     this.marks.push(
@@ -743,29 +740,6 @@ class Linter {
         `
       })
     );
-
-    // create error alert node
-    if (this.prefs.show_error_messages) {
-      let lint_alert = document.createElement("span");
-      let lint_message = document.createTextNode(`------ ${message}`);
-      lint_alert.appendChild(lint_message);
-      lint_alert.className = "jupyterlab-flake8-lint-message";
-
-      // add error alert node to the 'to' location
-      this.bookmarks.push((<any>doc).addLineWidget(from.line, lint_alert));
-    }
-
-    // this.bookmarks.push(doc.setBookmark({line: loc.lin, ch: ch}, {
-    //   widget: lint_alert
-    // }));
-    //
-
-    // window debugging
-    // (<any>window).editor = editor;
-    // (<any>window).doc = doc;
-    // (<any>window).notebook = this.notebook;
-    // (<any>window).cell = this.notebook.widgets[loc.cell];
-    // (<any>window).CodeMirror = CodeMirror
   }
 
   /**
@@ -816,21 +790,6 @@ class Linter {
           this.setPreference("toggled", !this.prefs.toggled);
         }
       },
-      "flake8:show_error_messages": {
-        label: "Show Flake8 Error Messages",
-        isEnabled: () => {
-          return this.loaded;
-        },
-        isToggled: () => {
-          return this.prefs.show_error_messages;
-        },
-        execute: async () => {
-          this.setPreference(
-            "show_error_messages",
-            !this.prefs.show_error_messages
-          );
-        }
-      },
       "flake8:show_browser_logs": {
         label: "Output Flake8 Browser Console Logs",
         isEnabled: () => {
@@ -868,19 +827,6 @@ class Linter {
       this.load_linter();
     } else {
       this.dispose_linter();
-    }
-  }
-
-  /**
-   * Turn error messages on/off
-   */
-  private toggle_error_messages() {
-    if (!this.prefs.show_error_messages) {
-      this.clear_error_messages();
-    } else if (this.cache && this.cache.length > 0) {
-      this.cache.forEach(mark => {
-        this.mark_line(mark.doc, mark.from, mark.to, mark.message);
-      });
     }
   }
 

@@ -16,13 +16,13 @@
     },
     "highlight_color": {
       "type": "string",
-      "description": "Highlight color",
-      "default": "yellow"
+      "description": "Highlight color. You may use css variables here (i.e. var(--jp-error-color3) )",
+      "default": "var(--jp-warn-color3)"
     },
-    "show_error_messages": {
-      "type": "boolean",
-      "description": "Write error messages into cells",
-      "default": true
+    "gutter_color": {
+      "type": "string",
+      "description": "Gutter icon color. You may use css variables here (i.e. var(--jp-error-color0) )",
+      "default": "var(--jp-error-color0)"
     },
     "term_timeout": {
       "type": "integer",

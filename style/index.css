@@ -11,7 +11,6 @@
 }
 
 .jupyterlab-flake8-lint-gutter-container {
-  color: var(--jp-error-color0);
   cursor: pointer;
   display: flex;
   justify-content: center;

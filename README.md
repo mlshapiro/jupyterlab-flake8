@@ -81,7 +81,6 @@ The `flake8` linter will then use this configuration in the notebook.
 
 Please help contribute if you have time and think this is useful. I will continue to improve as I have time:
 
-- show error messages on hover rather than in a new line
 - make lint frequency a configurable option
 
 ## Development
@@ -120,3 +119,7 @@ Every time you add a dependency you much re-run `npm run watch`, then `jupyter l
 ## Acknowledgment
 
 - Used https://github.com/ijmbarr/jupyterlab_spellchecker as a starting point
+
+## Contributors
+
+- [mcnuttandrew](https://github.com/mcnuttandrew)
