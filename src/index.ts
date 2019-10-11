@@ -306,7 +306,7 @@ class Linter {
 
     // select the notebook
     this.notebook = this.notebookTracker.currentWidget.content;
-    this.checkGutters();
+    this.checkNotebookGutters();
 
     // run on cell changing
     this.notebookTracker.activeCellChanged.disconnect(
@@ -327,6 +327,7 @@ class Linter {
    * Run linter when active cell changes
    */
   private onActiveCellChanged(): void {
+    this.checkNotebookGutters();
     if (this.loaded && this.prefs.toggled) {
       if (!this.linting) {
         this.lint_notebook();
@@ -334,7 +335,6 @@ class Linter {
         this.log('flake8 is already running onActiveCellChanged');
       }
     }
-    this.checkGutters();
   }
 
   /**
@@ -348,6 +348,7 @@ class Linter {
 
     // select the editor
     this.editor = this.editorTracker.currentWidget.content;
+    this.checkEditorGutters();
 
     // run on stateChanged
     this.editor.model.stateChanged.disconnect(this.onActiveEditorChanges, this);
@@ -358,6 +359,7 @@ class Linter {
    * Run linter on active editor changes
    */
   private onActiveEditorChanges(): void {
+    this.checkEditorGutters();
     if (this.loaded && this.prefs.toggled) {
       if (!this.linting) {
         this.lint_editor();
@@ -367,7 +369,7 @@ class Linter {
     }
   }
 
-  private checkGutters(): void {
+  private checkNotebookGutters(): void {
     this.notebook.widgets.forEach((widget: any) => {
       const editor = widget.inputArea.editor;
       const lineNumbers = editor._config.lineNumbers;
@@ -379,6 +381,21 @@ class Linter {
       ].filter(d => d);
       editor.editor.setOption('gutters', gutters);
     });
+  }
+
+  private checkEditorGutters(): void {
+    // let editor = this.editorTracker.currentWidget.content;
+    // let editorWidget = this.editorTracker.currentWidget;
+
+    const editor = this.editor.editor;
+    const lineNumbers = editor._config.lineNumbers;
+    const codeFolding = editor._config.codeFolding;
+    const gutters = [
+      lineNumbers && 'CodeMirror-linenumbers',
+      codeFolding && 'CodeMirror-foldgutter',
+      this.gutter_id
+    ].filter(d => d);
+    editor.setOption('gutters', gutters);
   }
 
   /**
@@ -714,6 +731,7 @@ class Linter {
 
     // store gutter marks for later
     doc.cm.setGutterMarker(from.line, this.gutter_id, makeMarker());
+
     this.docs.push(doc);
 
     // mark the text
