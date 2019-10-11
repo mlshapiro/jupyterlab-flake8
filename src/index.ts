@@ -70,9 +70,9 @@ class Linter {
   // editor
   editor: any; // current file editor widget
   editortext: any; // current file editor text
+  gutter_id: string = 'CodeMirror-lintgutter'; // gutter element id
 
   // cache
-  cache: Array<any> = []; // cache for messages
   marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
   docs: Array<any> = []; // text marker objects currently active
   text: string = ''; // current nb text
@@ -375,7 +375,7 @@ class Linter {
       const gutters = [
         lineNumbers && 'CodeMirror-linenumbers',
         codeFolding && 'CodeMirror-foldgutter',
-        'CodeMirror-lintgutter'
+        this.gutter_id
       ].filter(d => d);
       editor.editor.setOption('gutters', gutters);
     });
@@ -433,12 +433,9 @@ class Linter {
 
     // clear gutter
     this.docs.forEach((doc: any) => {
-      doc.clearGutter();
+      doc.cm.clearGutter(this.gutter_id);
     });
     this.docs = [];
-
-    // clear cache
-    this.cache = [];
   }
 
   /**
@@ -693,14 +690,6 @@ class Linter {
       return;
     }
 
-    // cache mark
-    this.cache.push({
-      doc: doc,
-      from: from,
-      to: to,
-      message: message
-    });
-
     this.mark_line(doc, from, to, message);
   }
 
@@ -724,8 +713,8 @@ class Linter {
     }
 
     // store gutter marks for later
-    doc.cm.setGutterMarker(from.line, 'CodeMirror-lintgutter', makeMarker());
-    this.docs.push(doc.cm);
+    doc.cm.setGutterMarker(from.line, this.gutter_id, makeMarker());
+    this.docs.push(doc);
 
     // mark the text
     this.marks.push(
