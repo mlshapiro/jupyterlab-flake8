@@ -419,14 +419,37 @@ class Linter {
           return line;
         }
       })
-      .join('\n');
+      .join(this.newline());
 
     // remove final \n (#20)
-    if (escaped.endsWith('\n')) {
-      escaped = escaped.slice(0, -1);
+    if (escaped.endsWith(this.newline())) {
+      if (this.os === "nt") {
+        escaped = escaped.slice(0, -2);  // powershell
+      } else {
+        escaped = escaped.slice(0, -1);  // unix
+      }
     }
 
-    return `(echo "${escaped}" | flake8 --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`;
+    if (this.os === "nt") {  // powershell
+      return `echo "${escaped}" | flake8 --exit-zero - ; if($?) {echo "@jupyterlab-flake8 finished linting"} ; if (-not $?) {echo "@jupyterlab-flake8 finished linting failed"} `
+    } else { // unix
+      return `(echo "${escaped}" | flake8 --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`;
+    }
+
+  }
+
+  /**
+   * Determine new line character based on platform
+   */
+  private newline() {
+    // powershell by default on windows
+    if (this.os === "nt") {
+      return "`n";
+
+    // otherwise unix
+    } else {
+      return "\n";
+    }
   }
 
   /**
@@ -670,12 +693,14 @@ class Linter {
         return;
       }
 
-      message.split('\n').forEach(m => {
+      message.split(/(?:\n|\[)/).forEach(m => {
         if (m.includes('stdin:')) {
           let idxs = m.split(':');
           let line = parseInt(idxs[1]);
           let ch = parseInt(idxs[2]);
-          this.get_mark(line, ch, idxs[3]);
+          this.log(idxs[3])
+
+          this.get_mark(line, ch, idxs[3].slice(0, -1));
         }
       });
 
