@@ -74,6 +74,7 @@ class Linter {
 
   // cache
   marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
+  bookmarks: Array<any> = []; // text marker objects in editor // --- Temporary fix since gutter doesn't work in editor
   docs: Array<any> = []; // text marker objects currently active
   text: string = ''; // current nb text
   process_mark: Function; // default line marker processor
@@ -471,6 +472,10 @@ class Linter {
     });
     this.marks = [];
 
+    // --- Temporary fix since gutter doesn't work in editor
+    // clear error messages in editor
+    this.clear_error_messages();
+
     // clear gutter
     this.docs.forEach((doc: any) => {
       doc.cm.clearGutter(this.gutter_id);
@@ -520,7 +525,7 @@ class Linter {
     // get code mirror editor
     let doc = this.editor.editorWidget.editor.doc;
 
-    return [doc, from, to];
+    return [doc, from, to, 'editor'];
   }
 
   /**
@@ -610,7 +615,7 @@ class Linter {
       .editor as CodeMirrorEditor;
     let doc = editor.doc;
 
-    return [doc, from, to];
+    return [doc, from, to, 'notebook'];
   }
 
   /**
@@ -717,10 +722,10 @@ class Linter {
    * @param {string} message [description]
    */
   private get_mark(line: number, ch: number, message: string) {
-    let doc, from, to;
+    let doc, from, to, context;
     try {
       if (this.process_mark && typeof this.process_mark === 'function') {
-        [doc, from, to] = this.process_mark(line, ch);
+        [doc, from, to, context] = this.process_mark(line, ch);
       }
     } catch (e) {
       this.log(`failed to run process_mark`);
@@ -732,7 +737,7 @@ class Linter {
       return;
     }
 
-    this.mark_line(doc, from, to, message);
+    this.mark_line(doc, from, to, message, context);
   }
 
   /**
@@ -742,10 +747,10 @@ class Linter {
    * @param {any}    to      [description]
    * @param {string} message [description]
    */
-  private mark_line(doc: any, from: any, to: any, message: string) {
+  private mark_line(doc: any, from: any, to: any, message: string, context: 'editor'|'notebook') {
     let gutter_color = this.prefs.gutter_color;
 
-    // gutter marker
+    // gutter marker - this doesn't work in the editor
     function makeMarker() {
       let marker = document.createElement('div');
       marker.innerHTML = `<div class='jupyterlab-flake8-lint-gutter-container' style='color: ${gutter_color}''>
@@ -759,7 +764,19 @@ class Linter {
 
     this.docs.push(doc);
 
-    // mark the text
+    // --- Temporary fix since gutters don't show up in editor
+    // show error message in editor
+    if (context === "editor") {
+      let lint_alert = document.createElement("span");
+      let lint_message = document.createTextNode(`------ ${message}`);
+      lint_alert.appendChild(lint_message);
+      lint_alert.className = "jupyterlab-flake8-lint-message-inline";
+
+      // add error alert node to the 'to' location
+      this.bookmarks.push((<any>doc).addLineWidget(from.line, lint_alert));
+    }
+
+    // mark the text position with highlight
     this.marks.push(
       doc.markText(from, to, {
         // replacedWith: selected_char_node,
@@ -769,6 +786,16 @@ class Linter {
         `
       })
     );
+  }
+
+  /**
+   * // --- Temporary fix since gutters don't show up in editor
+   * Clear all error messages
+   */
+  private clear_error_messages() {
+    this.bookmarks.forEach((bookmark: any) => {
+      bookmark.clear();
+    });
   }
 
   /**
