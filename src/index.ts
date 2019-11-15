@@ -424,19 +424,20 @@ class Linter {
 
     // remove final \n (#20)
     if (escaped.endsWith(this.newline())) {
-      if (this.os === "nt") {
-        escaped = escaped.slice(0, -2);  // powershell
+      if (this.os === 'nt') {
+        escaped = escaped.slice(0, -2); // powershell
       } else {
-        escaped = escaped.slice(0, -1);  // unix
+        escaped = escaped.slice(0, -1); // unix
       }
     }
 
-    if (this.os === "nt") {  // powershell
-      return `echo "${escaped}" | flake8 --exit-zero - ; if($?) {echo "@jupyterlab-flake8 finished linting"} ; if (-not $?) {echo "@jupyterlab-flake8 finished linting failed"} `
-    } else { // unix
+    if (this.os === 'nt') {
+      // powershell
+      return `echo "${escaped}" | flake8 --exit-zero - ; if($?) {echo "@jupyterlab-flake8 finished linting"} ; if (-not $?) {echo "@jupyterlab-flake8 finished linting failed"} `;
+    } else {
+      // unix
       return `(echo "${escaped}" | flake8 --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`;
     }
-
   }
 
   /**
@@ -444,12 +445,12 @@ class Linter {
    */
   private newline() {
     // powershell by default on windows
-    if (this.os === "nt") {
-      return "`n";
+    if (this.os === 'nt') {
+      return '`n';
 
-    // otherwise unix
+      // otherwise unix
     } else {
-      return "\n";
+      return '\n';
     }
   }
 
@@ -703,7 +704,7 @@ class Linter {
           let idxs = m.split(':');
           let line = parseInt(idxs[1]);
           let ch = parseInt(idxs[2]);
-          this.log(idxs[3])
+          this.log(idxs[3]);
 
           this.get_mark(line, ch, idxs[3].slice(0, -1));
         }
@@ -747,7 +748,13 @@ class Linter {
    * @param {any}    to      [description]
    * @param {string} message [description]
    */
-  private mark_line(doc: any, from: any, to: any, message: string, context: 'editor'|'notebook') {
+  private mark_line(
+    doc: any,
+    from: any,
+    to: any,
+    message: string,
+    context: 'editor' | 'notebook'
+  ) {
     let gutter_color = this.prefs.gutter_color;
 
     // gutter marker - this doesn't work in the editor
@@ -766,11 +773,11 @@ class Linter {
 
     // --- Temporary fix since gutters don't show up in editor
     // show error message in editor
-    if (context === "editor") {
-      let lint_alert = document.createElement("span");
+    if (context === 'editor') {
+      let lint_alert = document.createElement('span');
       let lint_message = document.createTextNode(`------ ${message}`);
       lint_alert.appendChild(lint_message);
-      lint_alert.className = "jupyterlab-flake8-lint-message-inline";
+      lint_alert.className = 'jupyterlab-flake8-lint-message-inline';
 
       // add error alert node to the 'to' location
       this.bookmarks.push((<any>doc).addLineWidget(from.line, lint_alert));
