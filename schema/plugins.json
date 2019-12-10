@@ -38,7 +38,13 @@
       "type": "string",
       "description": "Persistent internal terminal name. This is set automatically on each run",
       "default": ""
+    },
+    "configuration_file": {
+      "type": "string",
+      "description": "Base configuration file option to pass to flake8.",
+      "default": ""
     }
+
   },
   "additionalProperties": false,
   "type": "object"
