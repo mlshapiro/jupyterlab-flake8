@@ -407,8 +407,17 @@ class Linter {
    * @return {string} [description]
    */
   private lint_cmd(contents: string): string {
-    let escaped = contents.replace(/["`\\]/g, '\\$&');
-    // escaped = contents.replace(/[\\]/g,'\\$&');   // escape escapes
+
+    // escaped characters common to powershell and unix
+    let escaped = contents.replace(/[`\\]/g, '\\$&');
+
+    // escaped characters speciic to shell
+    if (this.os === 'nt') {
+      escaped = contents.replace(/["]/g, '`$&'); // powershell
+    } else {
+      escaped = contents.replace(/["]/g, '\\$&'); // unix
+    }
+
     escaped = escaped.replace('\r', ''); // replace carriage returns
 
     // ignore magics by commenting
