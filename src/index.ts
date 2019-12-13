@@ -37,6 +37,7 @@ class Preferences {
   term_timeout: number; // seconds before the temrinal times out if it has not received a message
   conda_env: string; // conda environment
   terminal_name: string; // persistent terminal to share between session
+  configuration_file: string; // global flake8 configuration file
 }
 /**
  * Linter
@@ -431,12 +432,18 @@ class Linter {
       }
     }
 
+    let config_option = '';
+
+    if (this.prefs.configuration_file !== null && this.prefs.configuration_file !== ''){
+      config_option = `--config="${this.prefs.configuration_file}"`;
+    }
+
     if (this.os === 'nt') {
       // powershell
-      return `echo "${escaped}" | flake8 --exit-zero - ; if($?) {echo "@jupyterlab-flake8 finished linting"} ; if (-not $?) {echo "@jupyterlab-flake8 finished linting failed"} `;
+      return `echo "${escaped}" | flake8 ${config_option} --exit-zero - ; if($?) {echo "@jupyterlab-flake8 finished linting"} ; if (-not $?) {echo "@jupyterlab-flake8 finished linting failed"} `;
     } else {
       // unix
-      return `(echo "${escaped}" | flake8 --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`;
+      return `(echo "${escaped}" | flake8 ${config_option} --exit-zero - && echo "@jupyterlab-flake8 finished linting" ) || (echo "@jupyterlab-flake8 finished linting failed")`;
     }
   }
 

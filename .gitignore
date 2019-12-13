@@ -10,4 +10,5 @@ lib/
 # dependencies
 node_modules/
 *.egg-info/
-
+.vscode/*
+.flake8
