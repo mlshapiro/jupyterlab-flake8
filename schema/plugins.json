@@ -44,7 +44,6 @@
       "description": "Base configuration file option to pass to flake8.",
       "default": ""
     }
-
   },
   "additionalProperties": false,
   "type": "object"

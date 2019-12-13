@@ -407,7 +407,6 @@ class Linter {
    * @return {string} [description]
    */
   private lint_cmd(contents: string): string {
-
     // escaped characters common to powershell and unix
     let escaped = contents.replace(/[`\\]/g, '\\$&');
 
@@ -443,7 +442,10 @@ class Linter {
 
     let config_option = '';
 
-    if (this.prefs.configuration_file !== null && this.prefs.configuration_file !== ''){
+    if (
+      this.prefs.configuration_file !== null &&
+      this.prefs.configuration_file !== ''
+    ) {
       config_option = `--config="${this.prefs.configuration_file}"`;
     }
 
