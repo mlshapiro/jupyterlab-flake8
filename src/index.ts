@@ -438,8 +438,17 @@ class Linter {
     // ignore magics by commenting
     escaped = escaped
       .split('\n')
+
+      // handle ipy magics %% and %
       .map((line: string) => {
-        if (line.indexOf('%%') > -1) {
+        if (line.startsWith('%%')) {
+          return `# ${line}`;
+        } else {
+          return line;
+        }
+      })
+      .map((line: string) => {
+        if (line.startsWith('%')) {
           return `# ${line}`;
         } else {
           return line;
