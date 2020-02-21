@@ -183,6 +183,12 @@ class Linter {
     this.log(`set terminal_name to ${session.name}`);
     this.term = new Terminal(session);
 
+    // flush on load
+    function _flush_on_load(sender: any, msg: any) {
+      this.term.session.messageReceived.disconnect(_flush_load, this);
+    }
+
+
     // get OS
     function _get_OS(sender: any, msg: any) {
       if (msg.content) {
@@ -221,6 +227,16 @@ class Linter {
 
     // wait a moment for terminal to load and then ask for OS
     setTimeout(() => {
+
+      // this gets rid of any messages that might get sent on load
+      // may fix #28 or #31
+      this.term.session.messageReceived.connect(_flush_on_load, this);
+      this.term.session.send({
+        type: 'stdin',
+        content: [`python --version\r`]
+      });
+
+      // ask for the OS
       this.term.session.messageReceived.connect(_get_OS, this);
       this.term.session.send({
         type: 'stdin',
