@@ -10,11 +10,13 @@ Jupyterlab extension to lint python notebooks and python files in the text edito
 
 ## Prerequisites
 
-- JupyterLab >= 1.x
+- JupyterLab >= 2.x
 
 ```bash
-$ conda install jupyterlab
+$ conda install jupyterlab -c conda-forge
 ```
+
+> To install the extension for JupyterLab 1.x, use version `jupyterlab-flake8@0.5.0`
 
 - [`flake8`](http://flake8.pycqa.org/en/latest/) python package
 
@@ -27,7 +29,11 @@ $ pip install flake8     # if using pip
 
 ```bash
 jupyter labextension install jupyterlab-flake8
+
+# if using JupyterLab 1.x, use:
+# jupyter labextension install jupyterlab-flake8@0.5.0
 ```
+
 
 ## Usage
 
