@@ -1,24 +1,16 @@
 import {
   JupyterFrontEnd,
-  JupyterFrontEndPlugin
+  JupyterFrontEndPlugin,
 } from '@jupyterlab/application';
 
 import { ICommandPalette } from '@jupyterlab/apputils';
-
 import { IMainMenu } from '@jupyterlab/mainmenu';
-
 import { INotebookTracker } from '@jupyterlab/notebook';
-
 import { IEditorTracker } from '@jupyterlab/fileeditor';
-
-import { IStateDB, ISettingRegistry } from '@jupyterlab/coreutils';
-
+import { IStateDB } from '@jupyterlab/statedb';
+import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { Terminal } from '@jupyterlab/terminal';
-
-import {
-  Cell // ICellModel
-} from '@jupyterlab/cells';
-
+import { Cell } from '@jupyterlab/cells';
 import { CodeMirrorEditor } from '@jupyterlab/codemirror';
 
 import * as CodeMirror from 'codemirror';
@@ -102,7 +94,7 @@ class Linter {
     // load settings from the registry
     Promise.all([
       this.settingRegistry.load(this.settingsKey),
-      app.restored
+      app.restored,
     ]).then(([settings]) => {
       this.update_settings(settings, true);
 
@@ -169,12 +161,14 @@ class Linter {
     // try to connect to previous terminal, if not start a new one
     // TODO: still can't set the name of a terminal, so for now saving the "new"
     // terminal name in the settings (#16)
-    let session = await this.app.serviceManager.terminals
-      .connectTo(this.prefs.terminal_name)
-      .catch(() => {
-        this.log(`starting new terminal session`);
-        return this.app.serviceManager.terminals.startNew();
-      });
+    let session;
+    try {
+      session = await this.app.serviceManager.terminals
+        .connectTo({ model: {name: this.prefs.terminal_name }})
+    } catch(e) {
+      this.log(`starting new terminal session`);
+      session = await this.app.serviceManager.terminals.startNew();
+    };
 
     // save terminal name
     this.setPreference('terminal_name', session.name);
@@ -185,9 +179,8 @@ class Linter {
 
     // flush on load
     function _flush_on_load(sender: any, msg: any) {
-      this.term.session.messageReceived.disconnect(_flush_load, this);
+      this.term.session.messageReceived.disconnect(_flush_on_load, this);
     }
-
 
     // get OS
     function _get_OS(sender: any, msg: any) {
@@ -227,20 +220,19 @@ class Linter {
 
     // wait a moment for terminal to load and then ask for OS
     setTimeout(() => {
-
       // this gets rid of any messages that might get sent on load
       // may fix #28 or #31
       this.term.session.messageReceived.connect(_flush_on_load, this);
       this.term.session.send({
         type: 'stdin',
-        content: [`python --version\r`]
+        content: [`python --version\r`],
       });
 
       // ask for the OS
       this.term.session.messageReceived.connect(_get_OS, this);
       this.term.session.send({
         type: 'stdin',
-        content: [`python -c "import os; print(os.name)"\r`]
+        content: [`python -c "import os; print(os.name)"\r`],
       });
     }, 1000);
   }
@@ -264,12 +256,12 @@ class Linter {
     if (this.os === 'posix') {
       this.term.session.send({
         type: 'stdin',
-        content: [`conda activate ${this.prefs.conda_env}\r`]
+        content: [`conda activate ${this.prefs.conda_env}\r`],
       });
     } else if (this.os !== 'posix') {
       this.term.session.send({
         type: 'stdin',
-        content: [`activate ${this.prefs.conda_env}\r`]
+        content: [`activate ${this.prefs.conda_env}\r`],
       });
     }
 
@@ -395,8 +387,8 @@ class Linter {
       const gutters = [
         lineNumbers && 'CodeMirror-linenumbers',
         codeFolding && 'CodeMirror-foldgutter',
-        this.gutter_id
-      ].filter(d => d);
+        this.gutter_id,
+      ].filter((d) => d);
       editor.editor.setOption('gutters', gutters);
     });
   }
@@ -411,8 +403,8 @@ class Linter {
     const gutters = [
       lineNumbers && 'CodeMirror-linenumbers',
       codeFolding && 'CodeMirror-foldgutter',
-      this.gutter_id
-    ].filter(d => d);
+      this.gutter_id,
+    ].filter((d) => d);
     editor.setOption('gutters', gutters);
   }
 
@@ -613,7 +605,7 @@ class Linter {
         for (let idx = 0; idx < lines.length - 1; idx++) {
           this.lookup[line] = {
             cell: cell_idx,
-            line: idx
+            line: idx,
           };
           line += 1;
         }
@@ -623,7 +615,7 @@ class Linter {
       else if (cell_idx === cell_arr.length - 1) {
         this.lookup[line] = {
           cell: cell_idx,
-          line: 0
+          line: 0,
         };
       }
     });
@@ -742,7 +734,7 @@ class Linter {
         return;
       }
 
-      message.split(/(?:\n|\[)/).forEach(m => {
+      message.split(/(?:\n|\[)/).forEach((m) => {
         if (m.includes('stdin:')) {
           let idxs = m.split(':');
           let line = parseInt(idxs[1]);
@@ -833,7 +825,7 @@ class Linter {
         className: 'jupyterlab-flake8-lint-message',
         css: `
           background-color: ${this.prefs.highlight_color}
-        `
+        `,
       })
     );
   }
@@ -894,7 +886,7 @@ class Linter {
         },
         execute: async () => {
           this.setPreference('toggled', !this.prefs.toggled);
-        }
+        },
       },
       'flake8:show_browser_logs': {
         label: 'Output Flake8 Browser Console Logs',
@@ -906,8 +898,8 @@ class Linter {
         },
         execute: () => {
           this.setPreference('logging', !this.prefs.logging);
-        }
-      }
+        },
+      },
     };
 
     // add commands to menus and palette
@@ -918,7 +910,7 @@ class Linter {
 
     // add to view Menu
     this.mainMenu.viewMenu.addGroup(
-      Object.keys(commands).map(key => {
+      Object.keys(commands).map((key) => {
         return { command: key };
       }),
       30
@@ -942,7 +934,7 @@ class Linter {
   private async setPreference(key: string, val: any) {
     await Promise.all([
       this.settingRegistry.load(this.settingsKey),
-      this.app.restored
+      this.app.restored,
     ]).then(([settings]) => {
       settings.set(key, val); // will automatically call update
     });
@@ -985,8 +977,8 @@ const extension: JupyterFrontEndPlugin<void> = {
     ICommandPalette,
     IMainMenu,
     IStateDB,
-    ISettingRegistry
-  ]
+    ISettingRegistry,
+  ],
 };
 
 export default extension;
