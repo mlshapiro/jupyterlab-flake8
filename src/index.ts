@@ -261,7 +261,7 @@ class Linter {
     } else if (this.os !== 'posix') {
       this.term.session.send({
         type: 'stdin',
-        content: [`activate ${this.prefs.conda_env}\r`],
+        content: [`source activate ${this.prefs.conda_env}\r`],
       });
     }
 
