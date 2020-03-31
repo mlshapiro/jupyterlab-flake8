@@ -620,6 +620,18 @@ class Linter {
       }
     });
 
+    // ignore other languages (#32)
+    // this seems to be all %%magic commands except %%capture
+    this.cell_text = this.cell_text.map((cell: any, cell_idx: number, cell_arr: any[]) => {
+      let firstline = cell.split('\n')[0];
+      this.log(firstline)
+      if (firstline && firstline.startsWith("%%") && !(firstline.indexOf("%%capture") > -1)) {
+        return cell.split('\n').map((t:string) => `# ${t}`).join('\n');
+      } else {
+        return cell;
+      }
+    });
+
     // join cells with text with two new lines
     let pytext = this.cell_text.join('');
 
