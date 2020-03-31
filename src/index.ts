@@ -179,13 +179,18 @@ class Linter {
 
     // flush on load
     function _flush_on_load(sender: any, msg: any) {
-      this.term.session.messageReceived.disconnect(_flush_on_load, this);
+      return;
     }
+
+    // this gets rid of any messages that might get sent on load
+    // may fix #28 or #31
+    this.term.session.messageReceived.connect(_flush_on_load, this);
 
     // get OS
     function _get_OS(sender: any, msg: any) {
       if (msg.content) {
         let message: string = msg.content[0] as string;
+
         // throw away non-strings
         if (typeof message !== 'string') {
           return;
@@ -202,6 +207,7 @@ class Linter {
           this.os = 'posix';
         } else if (
           message.indexOf('nt(') === -1 &&
+          message.indexOf('int') === -1 &&
           message.indexOf('nt') > -1
         ) {
           this.os = 'nt';
@@ -220,13 +226,9 @@ class Linter {
 
     // wait a moment for terminal to load and then ask for OS
     setTimeout(() => {
-      // this gets rid of any messages that might get sent on load
-      // may fix #28 or #31
-      this.term.session.messageReceived.connect(_flush_on_load, this);
-      this.term.session.send({
-        type: 'stdin',
-        content: [`python --version\r`],
-      });
+
+      // disconnect flush
+      this.term.session.messageReceived.disconnect(_flush_on_load, this);
 
       // ask for the OS
       this.term.session.messageReceived.connect(_get_OS, this);
@@ -234,7 +236,8 @@ class Linter {
         type: 'stdin',
         content: [`python -c "import os; print(os.name)"\r`],
       });
-    }, 1000);
+
+    }, 1500);
   }
 
   private setup_terminal() {
@@ -624,10 +627,10 @@ class Linter {
     // this seems to be all %%magic commands except %%capture
     this.cell_text = this.cell_text.map((cell: any, cell_idx: number, cell_arr: any[]) => {
       let firstline = cell.split('\n')[0];
-      this.log(firstline)
       if (firstline && firstline.startsWith("%%") && !(firstline.indexOf("%%capture") > -1)) {
-        return cell.split('\n').map((t:string) => `# ${t}`).join('\n');
+        return cell.split('\n').map((t:string) => t != "" ? `# ${t}` : "").join('\n');
       } else {
+
         return cell;
       }
     });
