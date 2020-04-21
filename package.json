@@ -54,7 +54,9 @@
     "tslint": "^5.15.0",
     "tslint-config-prettier": "^1.18.0",
     "tslint-plugin-prettier": "^2.3.0",
-    "typescript": "~3.7.4"
+    "typescript": "~3.7.4",
+    "minimist": ">=1.2.3"
+}
   },
   "jupyterlab": {
     "extension": true,
