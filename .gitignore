@@ -1,10 +1,12 @@
 *.bundle.*
 lib/
 node_modules/
+_temp_extension/
 *.egg-info/
 .ipynb_checkpoints
 *.tsbuildinfo
 jupyterlab-flake8/labextension
+
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python
