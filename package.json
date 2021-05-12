@@ -43,7 +43,7 @@
     "@jupyterlab/statedb": "^2.0.1",
     "@jupyterlab/terminal": "^2.0.2",
     "@types/codemirror": "0.0.76",
-    "codemirror": "~5.49.2"
+    "codemirror": "~5.58.2"
   },
   "devDependencies": {
     "eslint": "^6.8.0",
