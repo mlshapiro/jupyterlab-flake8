@@ -27,11 +27,16 @@ $ pip install flake8     # if using pip
 
 ## Installation
 
-```bash
-jupyter labextension install jupyterlab-flake8
+For JupyterLab 3.x:
 
-# if using JupyterLab 1.x, use:
-# jupyter labextension install jupyterlab-flake8@0.5.0
+```bash
+pip install jupyterlab-flake8
+```
+
+For JupyterLab 2.x:
+
+```bash
+jupyter labextension install jupyterlab-flake8@0.6.1
 ```
 
 

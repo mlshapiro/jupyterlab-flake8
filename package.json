@@ -1,6 +1,6 @@
 {
   "name": "jupyterlab-flake8",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "jupyterlab extension to lint python code in the notebook and text editor",
   "keywords": [
     "jupyter",
@@ -31,34 +31,47 @@
     "prettier": "prettier --write '**/*{.ts,.tsx,.js,.jsx,.css,.json,.md}'"
   },
   "dependencies": {
-    "@jupyterlab/application": "^2.0.2",
-    "@jupyterlab/apputils": "^2.0.2",
-    "@jupyterlab/cells": "^2.0.2",
-    "@jupyterlab/codemirror": "^2.0.2",
+    "@jupyterlab/application": "^3.0.3",
+    "@jupyterlab/apputils": "^3.0.2",
+    "@jupyterlab/cells": "^3.0.2",
+    "@jupyterlab/codemirror": "^3.0.2",
     "@jupyterlab/coreutils": "^4.0.2",
-    "@jupyterlab/fileeditor": "^2.0.2",
-    "@jupyterlab/mainmenu": "^2.0.2",
-    "@jupyterlab/notebook": "^2.0.2",
+    "@jupyterlab/fileeditor": "^3.0.2",
+    "@jupyterlab/mainmenu": "^3.0.2",
+    "@jupyterlab/notebook": "^3.0.2",
     "@jupyterlab/settingregistry": "^2.0.1",
-    "@jupyterlab/statedb": "^2.0.1",
-    "@jupyterlab/terminal": "^2.0.2",
-    "@types/codemirror": "0.0.76",
+    "@jupyterlab/statedb": "^3.0.1",
+    "@jupyterlab/terminal": "^3.0.2",
+    "@types/codemirror": "0.0.87",
     "codemirror": "~5.49.2"
   },
   "devDependencies": {
-    "eslint": "^6.8.0",
-    "eslint-config-prettier": "^6.10.1",
-    "eslint-plugin-prettier": "^3.1.2",
-    "prettier": "^2.0.2",
+    "@jupyterlab/builder": "^3.0.0",
+    "@jupyterlab/translation": "^3.0.0",
+    "eslint": "^7.14.0",
+    "eslint-config-prettier": "^6.15.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "prettier": "^2.1.1",
     "shx": "^0.3.2",
     "tslint": "^5.15.0",
     "tslint-config-prettier": "^1.18.0",
     "tslint-plugin-prettier": "^2.3.0",
-    "typescript": "~3.7.4",
+    "typescript": "~4.1.3"
     "minimist": "^1.2.3"
   },
   "jupyterlab": {
+    "discovery": {
+      "server": {
+        "managers": [
+          "pip"
+        ],
+        "base": {
+          "name": "jupyterlab-flake8"
+        }
+      }
+    },
     "extension": true,
-    "schemaDir": "schema"
+    "schemaDir": "schema",
+    "outputDir": "jupyterlab_flake8/labextension"
   }
 }
