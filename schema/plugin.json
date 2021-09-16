@@ -11,6 +11,11 @@
       "description": "Whether or not the linter is enabled",
       "default": true
     },
+    "lint_on_change": {
+      "type": "boolean",
+      "description": "Run linter when notebook/editor is changed",
+      "default": true
+    },
     "logging": {
       "type": "boolean",
       "description": "Log linter messages to the console for debugging",

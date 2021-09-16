@@ -23,6 +23,7 @@ const id = `jupyterlab-flake8`;
 
 class Preferences {
   toggled: Boolean = true; // turn on/off linter
+  lint_on_change: Boolean = true; // lint on notebook/editor change
   logging: Boolean = false; // turn on/off logging
   highlight_color: string = 'var(--jp-warn-color3)'; // color of highlights
   gutter_color: string = 'var(--jp-error-color0)'; // color of gutter icons
@@ -312,9 +313,8 @@ class Linter {
    */
   private onActiveNotebookChanged(): void {
     // return if file is being closed
-    if (!this.notebookTracker.currentWidget) {
-      return;
-    }
+    if (!this.notebookTracker.currentWidget) return;
+
 
     // select the notebook
     this.notebook = this.notebookTracker.currentWidget.content;
@@ -340,7 +340,9 @@ class Linter {
    */
   private onActiveCellChanged(): void {
     this.checkNotebookGutters();
-    if (this.loaded && this.prefs.toggled) {
+
+    // note this check must be here, not in the parent onActive function
+    if (this.loaded && this.prefs.toggled && this.prefs.lint_on_change) {
       if (!this.linting) {
         this.lint_notebook();
       } else {
@@ -354,9 +356,8 @@ class Linter {
    */
   private onActiveEditorChanged(): void {
     // return if file is being closed
-    if (!this.editorTracker.currentWidget) {
-      return;
-    }
+    if (!this.editorTracker.currentWidget) return;
+
 
     // select the editor
     this.editor = this.editorTracker.currentWidget.content;
@@ -372,7 +373,9 @@ class Linter {
    */
   private onActiveEditorChanges(): void {
     this.checkEditorGutters();
-    if (this.loaded && this.prefs.toggled) {
+
+    // note this check must be here, not in the parent onActive function
+    if (this.loaded && this.prefs.toggled && this.prefs.lint_on_change) {
       if (!this.linting) {
         this.lint_editor();
       } else {
@@ -910,18 +913,52 @@ class Linter {
           this.setPreference('toggled', !this.prefs.toggled);
         }
       },
-      'flake8:show_browser_logs': {
-        label: 'Output Flake8 Browser Console Logs',
+      'flake8:lint_on_change': {
+        label: 'Run Flake8 on notebook/editor change',
         isEnabled: () => {
-          return this.loaded;
+          return this.loaded && this.prefs.toggled;
         },
         isToggled: () => {
-          return this.prefs.logging;
+          return this.prefs.lint_on_change;
         },
         execute: () => {
-          this.setPreference('logging', !this.prefs.logging);
+          this.setPreference('lint_on_change', !this.prefs.lint_on_change);
         }
-      }
+      },
+      'flake8:run_lint_notebook': {
+        label: 'Lint active notebook',
+        isEnabled: () => {
+          return this.loaded && this.prefs.toggled;
+        },
+        execute: () => {
+          if (!(this.loaded && this.prefs.toggled)) return;
+
+          // return if undefined
+          if (!this.notebookTracker.currentWidget) return;
+
+          // select the notebook
+          this.notebook = this.notebookTracker.currentWidget.content;
+          this.checkNotebookGutters();
+          this.lint_notebook();
+        }
+      },
+      'flake8:run_lint_editor': {
+        label: 'Lint active editor',
+        isEnabled: () => {
+          return this.loaded && this.prefs.toggled;
+        },
+        execute: () => {
+          if (!(this.loaded && this.prefs.toggled)) return;
+
+          // return if file is being closed
+          if (!this.editorTracker.currentWidget) return;
+
+          // select the editor
+          this.editor = this.editorTracker.currentWidget.content;
+          this.checkEditorGutters();
+          this.lint_editor();
+        }
+      },
     };
 
     // add commands to menus and palette
@@ -932,9 +969,11 @@ class Linter {
 
     // add to view Menu
     this.mainMenu.viewMenu.addGroup(
-      Object.keys(commands).map(key => {
-        return { command: key };
-      }),
+      Object.keys(commands)
+        .filter(key => ['flake8:toggle', 'flake8:lint_on_change'].indexOf(key) > -1)
+        .map(key => {
+          return { command: key };
+        }),
       30
     );
   }
@@ -985,21 +1024,6 @@ function activate(
     settingRegistry
   );
 }
-
-// activate: (app: JupyterFrontEnd, settingRegistry: ISettingRegistry | null) => {
-//   console.log('JupyterLab extension jupyterlab-flake8 is activated!');
-
-//   if (settingRegistry) {
-//     settingRegistry
-//       .load(plugin.id)
-//       .then(settings => {
-//         console.log('jupyterlab-flake8 settings loaded:', settings.composite);
-//       })
-//       .catch(reason => {
-//         console.error('Failed to load settings for jupyterlab-flake8.', reason);
-//       });
-//   }
-// }
 
 /**
  * Initialization data for the jupyterlab-flake8 extension.
