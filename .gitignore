@@ -9,9 +9,15 @@
 # build
 *.bundle.*
 lib/
+jupyterlab_flake8/labextension
+*.tsbuildinfo
 
 # dependencies
 node_modules/
 *.egg-info/
 .vscode/*
 .flake8
+
+# python
+__pycache__
+.ipynb_checkpoints

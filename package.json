@@ -52,14 +52,13 @@
     "@jupyterlab/apputils": "^3.1.0",
     "@jupyterlab/cells": "^3.1.0",
     "@jupyterlab/codemirror": "^3.1.0",
-    "@jupyterlab/coreutils": "^4.0.2",
     "@jupyterlab/fileeditor": "^3.1.0",
     "@jupyterlab/mainmenu": "^3.1.0",
     "@jupyterlab/notebook": "^3.1.0",
     "@jupyterlab/statedb": "^3.0.1",
     "@jupyterlab/terminal": "^3.1.0",
-    "@types/codemirror": "0.0.87",
-    "codemirror": "~5.49.2"
+    "@types/codemirror": "5.60.2",
+    "codemirror": "~5.62.3"
   },
   "devDependencies": {
     "@jupyterlab/builder": "^3.1.0",

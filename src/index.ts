@@ -1,6 +1,6 @@
 import {
   JupyterFrontEnd,
-  JupyterFrontEndPlugin,
+  JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 
 import { ICommandPalette } from '@jupyterlab/apputils';
@@ -22,14 +22,14 @@ import '../style/index.css';
 const id = `jupyterlab-flake8`;
 
 class Preferences {
-  toggled: Boolean; // turn on/off linter
-  logging: Boolean; // turn on/off logging
-  highlight_color: string; // color of highlights
-  gutter_color: string; // color of gutter icons
-  term_timeout: number; // seconds before the temrinal times out if it has not received a message
-  conda_env: string; // conda environment
-  terminal_name: string; // persistent terminal to share between session
-  configuration_file: string; // global flake8 configuration file
+  toggled: Boolean = true; // turn on/off linter
+  logging: Boolean = false; // turn on/off logging
+  highlight_color: string = "var(--jp-warn-color3)"; // color of highlights
+  gutter_color: string = "var(--jp-error-color0)"; // color of gutter icons
+  term_timeout: number = 5000; // seconds before the temrinal times out if it has not received a message
+  conda_env: string = "base"; // conda environment
+  terminal_name: string = "flake8term"; // persistent terminal to share between session
+  configuration_file: string = ""; // global flake8 configuration file
 }
 /**
  * Linter
@@ -44,7 +44,7 @@ class Linter {
   term: Terminal;
 
   prefsKey = `${id}:preferences`;
-  settingsKey = `${id}:plugins`;
+  settingsKey = `${id}:plugin`;
 
   // Default Options
   prefs = new Preferences();
@@ -187,6 +187,7 @@ class Linter {
     this.term.session.messageReceived.connect(_flush_on_load, this);
 
     // get OS
+    const _this: Linter = this; 
     function _get_OS(sender: any, msg: any) {
       if (msg.content) {
         let message: string = msg.content[0] as string;
@@ -197,30 +198,30 @@ class Linter {
         }
 
         if (message.indexOf('command not found') > -1) {
-          this.log(`python command failed on this machine`);
-          this.term.session.messageReceived.disconnect(_get_OS, this);
-          this.finish_load();
+          _this.log(`python command failed on this machine`);
+          _this.term.session.messageReceived.disconnect(_get_OS, _this);
+          _this.finish_load();
         }
 
         // set OS
         if (message.indexOf('posix') > -1) {
-          this.os = 'posix';
+          _this.os = 'posix';
         } else if (
           message.indexOf('nt(') === -1 &&
           message.indexOf('int') === -1 &&
           message.indexOf('nt') > -1
         ) {
-          this.os = 'nt';
+          _this.os = 'nt';
         } else {
           return;
         }
-        this.log(`os: ${this.os}`);
+        _this.log(`os: ${_this.os}`);
 
         // disconnect the os listener and connect empty listener
-        this.term.session.messageReceived.disconnect(_get_OS, this);
+        _this.term.session.messageReceived.disconnect(_get_OS, _this);
 
         // setup stage
-        this.setup_terminal();
+        _this.setup_terminal();
       }
     }
 
@@ -282,7 +283,6 @@ class Linter {
       this.loaded = false;
       this.prefs.toggled = false;
       this.term.dispose();
-      this.term = undefined;
     }
   }
 
@@ -979,10 +979,26 @@ function activate(
   );
 }
 
+  // activate: (app: JupyterFrontEnd, settingRegistry: ISettingRegistry | null) => {
+  //   console.log('JupyterLab extension jupyterlab-flake8 is activated!');
+
+  //   if (settingRegistry) {
+  //     settingRegistry
+  //       .load(plugin.id)
+  //       .then(settings => {
+  //         console.log('jupyterlab-flake8 settings loaded:', settings.composite);
+  //       })
+  //       .catch(reason => {
+  //         console.error('Failed to load settings for jupyterlab-flake8.', reason);
+  //       });
+  //   }
+  // }
+
+
 /**
  * Initialization data for the jupyterlab-flake8 extension.
  */
-const extension: JupyterFrontEndPlugin<void> = {
+const plugin: JupyterFrontEndPlugin<void> = {
   id: 'jupyterlab-flake8',
   autoStart: true,
   activate: activate,
@@ -992,8 +1008,9 @@ const extension: JupyterFrontEndPlugin<void> = {
     ICommandPalette,
     IMainMenu,
     IStateDB,
-    ISettingRegistry,
+    ISettingRegistry
   ],
 };
 
-export default extension;
+export default plugin;
+

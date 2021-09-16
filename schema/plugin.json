@@ -1,4 +1,6 @@
 {
+  "jupyter.lab.setting-icon-label": "Flake8",
+  "jupyter.lab.setting-icon-class": "jp-SettingsIcon",
   "jupyter.lab.shortcuts": [],
   "title": "Jupyterlab-Flake8",
   "description": "Jupyterlab-Flake8 Linter settings.",
@@ -37,7 +39,7 @@
     "terminal_name": {
       "type": "string",
       "description": "Persistent internal terminal name. This is set automatically on each run",
-      "default": ""
+      "default": "flake8term"
     },
     "configuration_file": {
       "type": "string",
