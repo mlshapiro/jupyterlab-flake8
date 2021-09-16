@@ -19,19 +19,24 @@ import * as CodeMirror from 'codemirror';
 import '../style/index.css';
 
 // extension id
-const id = `jupyterlab-flake8`;
+const id = 'jupyterlab-flake8';
 
 class Preferences {
-  toggled: Boolean = true; // turn on/off linter
-  lint_on_change: Boolean = true; // lint on notebook/editor change
-  logging: Boolean = false; // turn on/off logging
-  highlight_color: string = 'var(--jp-warn-color3)'; // color of highlights
-  gutter_color: string = 'var(--jp-error-color0)'; // color of gutter icons
-  term_timeout: number = 5000; // seconds before the temrinal times out if it has not received a message
-  conda_env: string = 'base'; // conda environment
-  terminal_name: string = 'flake8term'; // persistent terminal to share between session
-  configuration_file: string = ''; // global flake8 configuration file
+  toggled = true; // turn on/off linter
+  lint_on_change = true; // lint on notebook/editor change
+  logging = false; // turn on/off logging
+  highlight_color = 'var(--jp-warn-color3)'; // color of highlights
+  gutter_color = 'var(--jp-error-color0)'; // color of gutter icons
+  term_timeout = 5000; // seconds before the temrinal times out if it has not received a message
+  conda_env = 'base'; // conda environment
+  terminal_name = 'flake8term'; // persistent terminal to share between session
+  configuration_file = ''; // global flake8 configuration file
 }
+
+interface IProcessMark {
+  (line: number, ch: number): any;
+}
+
 /**
  * Linter
  */
@@ -51,8 +56,8 @@ class Linter {
   prefs = new Preferences();
 
   // flags
-  loaded: boolean = false; // flag if flake8 is available
-  linting: boolean = false; // flag if the linter is processing
+  loaded = false; // flag if flake8 is available
+  linting = false; // flag if the linter is processing
   termTimeoutHandle: number; // flag if the linter is processing
 
   // notebook
@@ -64,15 +69,15 @@ class Linter {
   // editor
   editor: any; // current file editor widget
   editortext: any; // current file editor text
-  gutter_id: string = 'CodeMirror-lintgutter'; // gutter element id
+  gutter_id = 'CodeMirror-lintgutter'; // gutter element id
 
   // cache
   marks: Array<CodeMirror.TextMarker> = []; // text marker objects currently active
   bookmarks: Array<any> = []; // text marker objects in editor // --- Temporary fix since gutter doesn't work in editor
   docs: Array<any> = []; // text marker objects currently active
-  text: string = ''; // current nb text
-  process_mark: Function; // default line marker processor
-  os: string = ''; // operating system
+  text = ''; // current nb text
+  process_mark: IProcessMark; // default line marker processor
+  os = ''; // operating system
   settingRegistry: ISettingRegistry; // settings
 
   constructor(
@@ -129,9 +134,9 @@ class Linter {
    */
   private update_settings(
     settings: ISettingRegistry.ISettings,
-    first_load: Boolean = false
+    first_load = false
   ) {
-    let old = JSON.parse(JSON.stringify(this.prefs)); // copy old prefs
+    const old = JSON.parse(JSON.stringify(this.prefs)); // copy old prefs
 
     // set settings to prefs object
     Object.keys(settings.composite).forEach((key: string) => {
@@ -168,7 +173,7 @@ class Linter {
         model: { name: this.prefs.terminal_name }
       });
     } catch (e) {
-      this.log(`starting new terminal session`);
+      this.log('starting new terminal session');
       session = await this.app.serviceManager.terminals.startNew();
     }
 
@@ -189,10 +194,9 @@ class Linter {
     this.term.session.messageReceived.connect(_flush_on_load, this);
 
     // get OS
-    const _this: Linter = this;
-    function _get_OS(sender: any, msg: any) {
+    const _get_OS = (sender: any, msg: any) => {
       if (msg.content) {
-        let message: string = msg.content[0] as string;
+        const message: string = msg.content[0] as string;
 
         // throw away non-strings
         if (typeof message !== 'string') {
@@ -200,32 +204,32 @@ class Linter {
         }
 
         if (message.indexOf('command not found') > -1) {
-          _this.log(`python command failed on this machine`);
-          _this.term.session.messageReceived.disconnect(_get_OS, _this);
-          _this.finish_load();
+          this.log('python command failed on this machine');
+          this.term.session.messageReceived.disconnect(_get_OS, this);
+          this.finish_load();
         }
 
         // set OS
         if (message.indexOf('posix') > -1) {
-          _this.os = 'posix';
+          this.os = 'posix';
         } else if (
           message.indexOf('nt(') === -1 &&
           message.indexOf('int') === -1 &&
           message.indexOf('nt') > -1
         ) {
-          _this.os = 'nt';
+          this.os = 'nt';
         } else {
           return;
         }
-        _this.log(`os: ${_this.os}`);
+        this.log(`os: ${this.os}`);
 
         // disconnect the os listener and connect empty listener
-        _this.term.session.messageReceived.disconnect(_get_OS, _this);
+        this.term.session.messageReceived.disconnect(_get_OS, this);
 
         // setup stage
-        _this.setup_terminal();
+        this.setup_terminal();
       }
-    }
+    };
 
     // wait a moment for terminal to load and then ask for OS
     setTimeout(() => {
@@ -236,14 +240,14 @@ class Linter {
       this.term.session.messageReceived.connect(_get_OS, this);
       this.term.session.send({
         type: 'stdin',
-        content: [`python -c "import os; print(os.name)"\r`]
+        content: ['python -c "import os; print(os.name)"\r']
       });
     }, 1500);
   }
 
   private setup_terminal() {
     if (this.os === 'posix') {
-      this.term.session.send({ type: 'stdin', content: [`HISTFILE= ;\r`] });
+      this.term.session.send({ type: 'stdin', content: ['HISTFILE= ;\r'] });
     }
 
     // custom conda-env
@@ -298,7 +302,7 @@ class Linter {
    * Dispose of the terminal used to lint
    */
   private dispose_linter() {
-    this.log(`disposing flake8 and terminal`);
+    this.log('disposing flake8 and terminal');
     this.lint_cleanup();
     this.clear_marks();
 
@@ -313,8 +317,9 @@ class Linter {
    */
   private onActiveNotebookChanged(): void {
     // return if file is being closed
-    if (!this.notebookTracker.currentWidget) return;
-
+    if (!this.notebookTracker.currentWidget) {
+      return;
+    }
 
     // select the notebook
     this.notebook = this.notebookTracker.currentWidget.content;
@@ -356,8 +361,9 @@ class Linter {
    */
   private onActiveEditorChanged(): void {
     // return if file is being closed
-    if (!this.editorTracker.currentWidget) return;
-
+    if (!this.editorTracker.currentWidget) {
+      return;
+    }
 
     // select the editor
     this.editor = this.editorTracker.currentWidget.content;
@@ -538,12 +544,12 @@ class Linter {
     ) {
       this.log('getting editor text from python file');
     } else {
-      this.log(`not python default lang`);
+      this.log('not python default lang');
       this.lint_cleanup();
       return;
     }
 
-    let pytext = this.editor.model.value.text;
+    const pytext = this.editor.model.value.text;
     this.lint(pytext);
   }
 
@@ -551,22 +557,21 @@ class Linter {
    * mark the editor pane
    * @param {number} line    [description]
    * @param {number} ch      [description]
-   * @param {string} message [description]
    */
   private mark_editor(line: number, ch: number) {
-    this.log(`marking editor`);
+    this.log('marking editor');
 
     line = line - 1; // 0 index
     ch = ch - 1; // not sure
 
     // get lines
-    let from = { line: line, ch: ch };
-    let to = { line: line, ch: ch + 1 };
+    const from = { line: line, ch: ch };
+    const to = { line: line, ch: ch + 1 };
 
     // get code mirror editor
-    let doc = this.editor.editorWidget.editor.doc;
+    const doc = this.editor.editorWidget.editor.doc;
 
-    return [doc, from, to, 'editor'];
+    return { context: 'editor', doc, from, to };
   }
 
   /**
@@ -606,7 +611,7 @@ class Linter {
     this.cell_text.map((cell: any, cell_idx: number, cell_arr: any[]) => {
       // if there is text in the cell,
       if (this.text_exists(cell)) {
-        let lines = cell.split('\n');
+        const lines = cell.split('\n');
         for (let idx = 0; idx < lines.length - 1; idx++) {
           this.lookup[line] = {
             cell: cell_idx,
@@ -629,7 +634,7 @@ class Linter {
     // this seems to be all %%magic commands except %%capture
     this.cell_text = this.cell_text.map(
       (cell: any, cell_idx: number, cell_arr: any[]) => {
-        let firstline = cell.split('\n')[0];
+        const firstline = cell.split('\n')[0];
         if (
           firstline &&
           firstline.startsWith('%%') &&
@@ -637,7 +642,7 @@ class Linter {
         ) {
           return cell
             .split('\n')
-            .map((t: string) => (t != '' ? `# ${t}` : ''))
+            .map((t: string) => (t !== '' ? `# ${t}` : ''))
             .join('\n');
         } else {
           return cell;
@@ -646,7 +651,7 @@ class Linter {
     );
 
     // join cells with text with two new lines
-    let pytext = this.cell_text.join('');
+    const pytext = this.cell_text.join('');
 
     // run linter
     this.lint(pytext);
@@ -658,25 +663,25 @@ class Linter {
    * @param {number} ch      the character # returned by flake 8
    */
   private mark_notebook(line: number, ch: number) {
-    let loc = this.lookup[line];
+    const loc = this.lookup[line];
     ch = ch - 1; // make character 0 indexed
 
     if (!loc) {
       return;
     }
 
-    let from = { line: loc.line, ch: ch };
-    let to = { line: loc.line, ch: ch + 1 };
+    const from = { line: loc.line, ch: ch };
+    const to = { line: loc.line, ch: ch + 1 };
 
     // get cell instance
-    let cell: Cell = this.notebook.widgets[loc.cell];
+    const cell: Cell = this.notebook.widgets[loc.cell];
 
     // get cell's code mirror editor
-    let editor: CodeMirrorEditor = cell.inputArea.editorWidget
+    const editor: CodeMirrorEditor = cell.inputArea.editorWidget
       .editor as CodeMirrorEditor;
-    let doc = editor.doc;
+    const doc = editor.doc;
 
-    return [doc, from, to, 'notebook'];
+    return { context: 'notebook', doc, from, to };
   }
 
   /**
@@ -706,11 +711,11 @@ class Linter {
 
     // get lint command to run in terminal and send to terminal
     this.log('preparing lint command');
-    let lint_cmd = this.lint_cmd(pytext);
+    const lint_cmd = this.lint_cmd(pytext);
     this.log('sending lint command');
     this.term.session.send({ type: 'stdin', content: [`${lint_cmd}\r`] });
     this.termTimeoutHandle = setTimeout(() => {
-      if ((this.linting = true)) {
+      if (this.linting) {
         this.log('lint command timed out');
         alert(
           'jupyterlab-flake8 ran into an issue connecting with the terminal. Please try reloading the browser or re-installing the jupyterlab-flake8 extension.'
@@ -731,7 +736,7 @@ class Linter {
   private onLintMessage(sender: any, msg: any): void {
     clearTimeout(this.termTimeoutHandle);
     if (msg.content) {
-      let message: string = msg.content[0] as string;
+      const message: string = msg.content[0] as string;
 
       // catch non-strings
       if (typeof message !== 'string') {
@@ -753,7 +758,7 @@ class Linter {
       // if message a is a reflection of the command, return
       if (message.indexOf('command not found') > -1) {
         alert(
-          `Flake8 was not found in this python environment. \n\nIf you are using a conda environment, set the 'conda_env' setting in the Advanced Settings menu and reload the Jupyter Lab window.\n\nIf you are not using a conda environment, Install Flake8 with 'pip install flake8' or 'conda install flake8' and reload the Jupyter Lab window`
+          "Flake8 was not found in this python environment. \n\nIf you are using a conda environment, set the 'conda_env' setting in the Advanced Settings menu and reload the Jupyter Lab window.\n\nIf you are not using a conda environment, Install Flake8 with 'pip install flake8' or 'conda install flake8' and reload the Jupyter Lab window"
         );
         this.lint_cleanup();
         return;
@@ -761,9 +766,9 @@ class Linter {
 
       message.split(/(?:\n|\[)/).forEach(m => {
         if (m.includes('stdin:')) {
-          let idxs = m.split(':');
-          let line = parseInt(idxs[1]);
-          let ch = parseInt(idxs[2]);
+          const idxs = m.split(':');
+          const line = parseInt(idxs[1]);
+          const ch = parseInt(idxs[2]);
           this.log(idxs[3]);
 
           this.get_mark(line, ch, idxs[3].slice(0, -1));
@@ -783,22 +788,21 @@ class Linter {
    * @param {string} message [description]
    */
   private get_mark(line: number, ch: number, message: string) {
-    let doc, from, to, context;
     try {
       if (this.process_mark && typeof this.process_mark === 'function') {
-        [doc, from, to, context] = this.process_mark(line, ch);
+        const { doc, from, to, context } = this.process_mark(line, ch);
+
+        if (!doc || !from || !to) {
+          this.log('mark location not fully defined');
+          return;
+        }
+
+        this.mark_line(doc, from, to, message, context);
       }
     } catch (e) {
-      this.log(`failed to run process_mark`);
+      this.log('failed to run process_mark');
       return;
     }
-
-    if (!doc || !from || !to) {
-      this.log(`mark location not fully defined`);
-      return;
-    }
-
-    this.mark_line(doc, from, to, message, context);
   }
 
   /**
@@ -815,11 +819,11 @@ class Linter {
     message: string,
     context: 'editor' | 'notebook'
   ) {
-    let gutter_color = this.prefs.gutter_color;
+    const gutter_color = this.prefs.gutter_color;
 
     // gutter marker - this doesn't work in the editor
     function makeMarker() {
-      let marker = document.createElement('div');
+      const marker = document.createElement('div');
       marker.innerHTML = `<div class='jupyterlab-flake8-lint-gutter-container' style='color: ${gutter_color}''>
         <div>◉</div><div class='jupyterlab-flake8-lint-gutter-message'>${message}</div>
       </div>`;
@@ -834,8 +838,8 @@ class Linter {
     // --- Temporary fix since gutters don't show up in editor
     // show error message in editor
     if (context === 'editor') {
-      let lint_alert = document.createElement('span');
-      let lint_message = document.createTextNode(`------ ${message}`);
+      const lint_alert = document.createElement('span');
+      const lint_message = document.createTextNode(`------ ${message}`);
       lint_alert.appendChild(lint_message);
       lint_alert.className = 'jupyterlab-flake8-lint-message-inline';
 
@@ -889,7 +893,7 @@ class Linter {
     }
 
     // prepend name
-    let output = `jupyterlab-flake8: ${msg}`;
+    const output = `jupyterlab-flake8: ${msg}`;
     console.log(output);
   }
 
@@ -897,10 +901,10 @@ class Linter {
    * Create menu / command items
    */
   add_commands() {
-    let category = 'Flake8';
+    const category = 'Flake8';
 
     // define all commands
-    let commands: any = {
+    const commands: any = {
       'flake8:toggle': {
         label: 'Enable Flake8',
         isEnabled: () => {
@@ -931,10 +935,14 @@ class Linter {
           return this.loaded && this.prefs.toggled;
         },
         execute: () => {
-          if (!(this.loaded && this.prefs.toggled)) return;
+          if (!(this.loaded && this.prefs.toggled)) {
+            return;
+          }
 
           // return if undefined
-          if (!this.notebookTracker.currentWidget) return;
+          if (!this.notebookTracker.currentWidget) {
+            return;
+          }
 
           // select the notebook
           this.notebook = this.notebookTracker.currentWidget.content;
@@ -948,21 +956,25 @@ class Linter {
           return this.loaded && this.prefs.toggled;
         },
         execute: () => {
-          if (!(this.loaded && this.prefs.toggled)) return;
+          if (!(this.loaded && this.prefs.toggled)) {
+            return;
+          }
 
           // return if file is being closed
-          if (!this.editorTracker.currentWidget) return;
+          if (!this.editorTracker.currentWidget) {
+            return;
+          }
 
           // select the editor
           this.editor = this.editorTracker.currentWidget.content;
           this.checkEditorGutters();
           this.lint_editor();
         }
-      },
+      }
     };
 
     // add commands to menus and palette
-    for (let key in commands) {
+    for (const key in commands) {
       this.app.commands.addCommand(key, commands[key]);
       this.palette.addItem({ command: key, category: category });
     }
@@ -970,7 +982,9 @@ class Linter {
     // add to view Menu
     this.mainMenu.viewMenu.addGroup(
       Object.keys(commands)
-        .filter(key => ['flake8:toggle', 'flake8:lint_on_change'].indexOf(key) > -1)
+        .filter(
+          key => ['flake8:toggle', 'flake8:lint_on_change'].indexOf(key) > -1
+        )
         .map(key => {
           return { command: key };
         }),
@@ -1013,7 +1027,7 @@ function activate(
   mainMenu: IMainMenu,
   state: IStateDB,
   settingRegistry: ISettingRegistry
-) {
+): void {
   new Linter(
     app,
     notebookTracker,
