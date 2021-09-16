@@ -54,7 +54,7 @@ jobs:
         python -m pip install .
 
         jupyter labextension list 2>&1 | grep -ie "jupyterlab-flake8.*OK"
-        python -m jupyterlab.browser_check
+        # python -m jupyterlab.browser_check   # this fails with the terminal
 
         check-manifest -v
 
@@ -93,4 +93,4 @@ jobs:
         pip install myextension.tar.gz
         pip install jupyterlab
         jupyter labextension list 2>&1 | grep -ie "jupyterlab-flake8.*OK"
-        python -m jupyterlab.browser_check --no-chrome-test
+        python -m jupyterlab.browser_check --no-chrome-test  # this fails with the terminal
