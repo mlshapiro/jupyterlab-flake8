@@ -24,12 +24,12 @@ const id = `jupyterlab-flake8`;
 class Preferences {
   toggled: Boolean = true; // turn on/off linter
   logging: Boolean = false; // turn on/off logging
-  highlight_color: string = "var(--jp-warn-color3)"; // color of highlights
-  gutter_color: string = "var(--jp-error-color0)"; // color of gutter icons
+  highlight_color: string = 'var(--jp-warn-color3)'; // color of highlights
+  gutter_color: string = 'var(--jp-error-color0)'; // color of gutter icons
   term_timeout: number = 5000; // seconds before the temrinal times out if it has not received a message
-  conda_env: string = "base"; // conda environment
-  terminal_name: string = "flake8term"; // persistent terminal to share between session
-  configuration_file: string = ""; // global flake8 configuration file
+  conda_env: string = 'base'; // conda environment
+  terminal_name: string = 'flake8term'; // persistent terminal to share between session
+  configuration_file: string = ''; // global flake8 configuration file
 }
 /**
  * Linter
@@ -94,7 +94,7 @@ class Linter {
     // load settings from the registry
     Promise.all([
       this.settingRegistry.load(this.settingsKey),
-      app.restored,
+      app.restored
     ]).then(([settings]) => {
       this.update_settings(settings, true);
 
@@ -163,12 +163,13 @@ class Linter {
     // terminal name in the settings (#16)
     let session;
     try {
-      session = await this.app.serviceManager.terminals
-        .connectTo({ model: {name: this.prefs.terminal_name }})
-    } catch(e) {
+      session = await this.app.serviceManager.terminals.connectTo({
+        model: { name: this.prefs.terminal_name }
+      });
+    } catch (e) {
       this.log(`starting new terminal session`);
       session = await this.app.serviceManager.terminals.startNew();
-    };
+    }
 
     // save terminal name
     this.setPreference('terminal_name', session.name);
@@ -187,7 +188,7 @@ class Linter {
     this.term.session.messageReceived.connect(_flush_on_load, this);
 
     // get OS
-    const _this: Linter = this; 
+    const _this: Linter = this;
     function _get_OS(sender: any, msg: any) {
       if (msg.content) {
         let message: string = msg.content[0] as string;
@@ -227,7 +228,6 @@ class Linter {
 
     // wait a moment for terminal to load and then ask for OS
     setTimeout(() => {
-
       // disconnect flush
       this.term.session.messageReceived.disconnect(_flush_on_load, this);
 
@@ -235,9 +235,8 @@ class Linter {
       this.term.session.messageReceived.connect(_get_OS, this);
       this.term.session.send({
         type: 'stdin',
-        content: [`python -c "import os; print(os.name)"\r`],
+        content: [`python -c "import os; print(os.name)"\r`]
       });
-
     }, 1500);
   }
 
@@ -260,12 +259,12 @@ class Linter {
     if (this.os === 'posix') {
       this.term.session.send({
         type: 'stdin',
-        content: [`conda activate ${this.prefs.conda_env}\r`],
+        content: [`conda activate ${this.prefs.conda_env}\r`]
       });
     } else if (this.os !== 'posix') {
       this.term.session.send({
         type: 'stdin',
-        content: [`source activate ${this.prefs.conda_env}\r`],
+        content: [`source activate ${this.prefs.conda_env}\r`]
       });
     }
 
@@ -390,8 +389,8 @@ class Linter {
       const gutters = [
         lineNumbers && 'CodeMirror-linenumbers',
         codeFolding && 'CodeMirror-foldgutter',
-        this.gutter_id,
-      ].filter((d) => d);
+        this.gutter_id
+      ].filter(d => d);
       editor.editor.setOption('gutters', gutters);
     });
   }
@@ -406,8 +405,8 @@ class Linter {
     const gutters = [
       lineNumbers && 'CodeMirror-linenumbers',
       codeFolding && 'CodeMirror-foldgutter',
-      this.gutter_id,
-    ].filter((d) => d);
+      this.gutter_id
+    ].filter(d => d);
     editor.setOption('gutters', gutters);
   }
 
@@ -608,7 +607,7 @@ class Linter {
         for (let idx = 0; idx < lines.length - 1; idx++) {
           this.lookup[line] = {
             cell: cell_idx,
-            line: idx,
+            line: idx
           };
           line += 1;
         }
@@ -618,22 +617,30 @@ class Linter {
       else if (cell_idx === cell_arr.length - 1) {
         this.lookup[line] = {
           cell: cell_idx,
-          line: 0,
+          line: 0
         };
       }
     });
 
     // ignore other languages (#32)
     // this seems to be all %%magic commands except %%capture
-    this.cell_text = this.cell_text.map((cell: any, cell_idx: number, cell_arr: any[]) => {
-      let firstline = cell.split('\n')[0];
-      if (firstline && firstline.startsWith("%%") && !(firstline.indexOf("%%capture") > -1)) {
-        return cell.split('\n').map((t:string) => t != "" ? `# ${t}` : "").join('\n');
-      } else {
-
-        return cell;
+    this.cell_text = this.cell_text.map(
+      (cell: any, cell_idx: number, cell_arr: any[]) => {
+        let firstline = cell.split('\n')[0];
+        if (
+          firstline &&
+          firstline.startsWith('%%') &&
+          !(firstline.indexOf('%%capture') > -1)
+        ) {
+          return cell
+            .split('\n')
+            .map((t: string) => (t != '' ? `# ${t}` : ''))
+            .join('\n');
+        } else {
+          return cell;
+        }
       }
-    });
+    );
 
     // join cells with text with two new lines
     let pytext = this.cell_text.join('');
@@ -749,7 +756,7 @@ class Linter {
         return;
       }
 
-      message.split(/(?:\n|\[)/).forEach((m) => {
+      message.split(/(?:\n|\[)/).forEach(m => {
         if (m.includes('stdin:')) {
           let idxs = m.split(':');
           let line = parseInt(idxs[1]);
@@ -840,7 +847,7 @@ class Linter {
         className: 'jupyterlab-flake8-lint-message',
         css: `
           background-color: ${this.prefs.highlight_color}
-        `,
+        `
       })
     );
   }
@@ -901,7 +908,7 @@ class Linter {
         },
         execute: async () => {
           this.setPreference('toggled', !this.prefs.toggled);
-        },
+        }
       },
       'flake8:show_browser_logs': {
         label: 'Output Flake8 Browser Console Logs',
@@ -913,8 +920,8 @@ class Linter {
         },
         execute: () => {
           this.setPreference('logging', !this.prefs.logging);
-        },
-      },
+        }
+      }
     };
 
     // add commands to menus and palette
@@ -925,7 +932,7 @@ class Linter {
 
     // add to view Menu
     this.mainMenu.viewMenu.addGroup(
-      Object.keys(commands).map((key) => {
+      Object.keys(commands).map(key => {
         return { command: key };
       }),
       30
@@ -949,7 +956,7 @@ class Linter {
   private async setPreference(key: string, val: any) {
     await Promise.all([
       this.settingRegistry.load(this.settingsKey),
-      this.app.restored,
+      this.app.restored
     ]).then(([settings]) => {
       settings.set(key, val); // will automatically call update
     });
@@ -979,21 +986,20 @@ function activate(
   );
 }
 
-  // activate: (app: JupyterFrontEnd, settingRegistry: ISettingRegistry | null) => {
-  //   console.log('JupyterLab extension jupyterlab-flake8 is activated!');
+// activate: (app: JupyterFrontEnd, settingRegistry: ISettingRegistry | null) => {
+//   console.log('JupyterLab extension jupyterlab-flake8 is activated!');
 
-  //   if (settingRegistry) {
-  //     settingRegistry
-  //       .load(plugin.id)
-  //       .then(settings => {
-  //         console.log('jupyterlab-flake8 settings loaded:', settings.composite);
-  //       })
-  //       .catch(reason => {
-  //         console.error('Failed to load settings for jupyterlab-flake8.', reason);
-  //       });
-  //   }
-  // }
-
+//   if (settingRegistry) {
+//     settingRegistry
+//       .load(plugin.id)
+//       .then(settings => {
+//         console.log('jupyterlab-flake8 settings loaded:', settings.composite);
+//       })
+//       .catch(reason => {
+//         console.error('Failed to load settings for jupyterlab-flake8.', reason);
+//       });
+//   }
+// }
 
 /**
  * Initialization data for the jupyterlab-flake8 extension.
@@ -1009,8 +1015,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     IMainMenu,
     IStateDB,
     ISettingRegistry
-  ],
+  ]
 };
 
 export default plugin;
-

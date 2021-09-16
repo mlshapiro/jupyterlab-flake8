@@ -10,7 +10,6 @@ Jupyterlab extension to lint python notebooks and python files in the text edito
 
 <img src="img/editor-example.png" />
 
-
 ## Prerequisites
 
 - JupyterLab >= 3.x
@@ -27,7 +26,6 @@ $ conda install flake8   # if using conda
 $ pip install flake8     # if using pip
 ```
 
-
 ## Installation
 
 For JupyterLab 3.x:
@@ -42,7 +40,6 @@ For JupyterLab 2.x:
 jupyter labextension install jupyterlab-flake8@0.6.1
 ```
 
-
 ## Uninstall
 
 To remove the extension, execute:
@@ -50,8 +47,6 @@ To remove the extension, execute:
 ```bash
 pip uninstall jupyterlab_flake8
 ```
-
-
 
 ## Usage
 
@@ -74,7 +69,6 @@ Toggle shortcuts are also available in the view menu:
   - Turn on browser console logs for debugging the extension
 
 <img src="img/options.png" width="300" />
-
 
 ## Configure Flake8
 
@@ -99,7 +93,6 @@ max-complexity = 10
 ```
 
 The `flake8` linter will then use this configuration in the notebook.
-
 
 ## Contributing
 
@@ -152,11 +145,9 @@ In development mode, you will also need to remove the symlink created by `jupyte
 command. To find its location, you can run `jupyter labextension list` to figure out where the `labextensions`
 folder is located. Then you can remove the symlink named `jupyterlab-flake8` within that folder.
 
-
 ### Packaging the extension
 
 See [RELEASE](RELEASE.md)
-
 
 ## Acknowledgment
 
