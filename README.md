@@ -1,22 +1,24 @@
 # Jupyterlab-flake8
 
+[![Github Actions Status](https://github.com/mlshapiro/jupyterlab-flake8/workflows/Build/badge.svg)](https://github.com/mlshapiro/jupyterlab-flake8/actions/workflows/build.yml)
+
 Jupyterlab extension to lint python notebooks and python files in the text editor. Uses [`flake8`](http://flake8.pycqa.org/en/latest/) python library for linting.
 
-> Note: This extension will only work if you can load the terminal in jupyterlab. The terminal does [not currently work on Windows 7](https://github.com/jupyterlab/jupyterlab/issues/3647)
+> Note: This extension will only work if you can load the terminal in jupyterlab
 
 <img src="img/example.png" />
 
 <img src="img/editor-example.png" />
 
+
 ## Prerequisites
 
-- JupyterLab >= 2.x
+- JupyterLab >= 3.x
 
 ```bash
-$ conda install jupyterlab -c conda-forge
+$ conda install jupyterlab  # if using conda
+$ pip install jupyterlab    # if using pip
 ```
-
-> To install the extension for JupyterLab 1.x, use version `jupyterlab-flake8@0.5.0`
 
 - [`flake8`](http://flake8.pycqa.org/en/latest/) python package
 
@@ -25,12 +27,13 @@ $ conda install flake8   # if using conda
 $ pip install flake8     # if using pip
 ```
 
+
 ## Installation
 
 For JupyterLab 3.x:
 
 ```bash
-pip install jupyterlab-flake8
+pip install jupyterlab_flake8
 ```
 
 For JupyterLab 2.x:
@@ -38,6 +41,16 @@ For JupyterLab 2.x:
 ```bash
 jupyter labextension install jupyterlab-flake8@0.6.1
 ```
+
+
+## Uninstall
+
+To remove the extension, execute:
+
+```bash
+pip uninstall jupyterlab_flake8
+```
+
 
 
 ## Usage
@@ -61,6 +74,7 @@ Toggle shortcuts are also available in the view menu:
   - Turn on browser console logs for debugging the extension
 
 <img src="img/options.png" width="300" />
+
 
 ## Configure Flake8
 
@@ -86,44 +100,63 @@ max-complexity = 10
 
 The `flake8` linter will then use this configuration in the notebook.
 
-## TODO
 
-Please help contribute if you have time and think this is useful. I will continue to improve as I have time:
+## Contributing
 
-- make lint frequency a configurable option
+### Development install
 
-## Development
+Note: You will need NodeJS to build the extension package.
 
-It is advisable to use a seperate conda environment for development:
-
-```bash
-$ conda create -n jlflake8 anaconda
-```
-
-For a development install (requires npm version 4 or later), do the following in the repository directory:
+The `jlpm` command is JupyterLab's pinned version of
+[yarn](https://yarnpkg.com/) that is installed with JupyterLab. You may use
+`yarn` or `npm` in lieu of `jlpm` below.
 
 ```bash
-$ npm install
-$ npm run build
-$ jupyter labextension install              # install and rebuild jupyterlab
-$ jupyter labextension install --no-build   # install, but don't build (built during `jupyter lab --watch`)
+# Clone the repo to your local environment
+# Change directory to the jupyterlab_flake8 directory
+# Install package in development mode
+pip install -e .
+
+# Link your development version of the extension with JupyterLab
+jupyter labextension develop . --overwrite
+
+# Rebuild extension Typescript source after making changes
+jlpm run build
 ```
 
-To rebuild the package and the JupyterLab app:
+You can watch the source directory and run JupyterLab at the same time in different terminals to watch for changes in the extension's source and automatically rebuild the extension.
 
 ```bash
-$ npm run build
-$ jupyter lab build
+# Watch the source directory in one terminal, automatically rebuilding when needed
+jlpm run watch
+
+# Run JupyterLab in another terminal
+jupyter lab
 ```
 
-To run jupyter lab and thet typescript in watch mode:
+With the watch command running, every saved change will immediately be built locally and available in your running JupyterLab. Refresh JupyterLab to load the change in your browser (you may need to wait several seconds for the extension to be rebuilt).
+
+By default, the `jlpm run build` command generates the source maps for this extension to make it easier to debug using the browser dev tools. To also generate source maps for the JupyterLab core extensions, you can run the following command:
 
 ```bash
-$ jupyter lab --watch       # in the first terminal window
-$ npm run watch             # in a new terminal window
+jupyter lab build --minimize=False
 ```
 
-Every time you add a dependency you much re-run `npm run watch`, then `jupyter lab --watch`
+### Development uninstall
+
+```bash
+pip uninstall jupyterlab_flake8
+```
+
+In development mode, you will also need to remove the symlink created by `jupyter labextension develop`
+command. To find its location, you can run `jupyter labextension list` to figure out where the `labextensions`
+folder is located. Then you can remove the symlink named `jupyterlab-flake8` within that folder.
+
+
+### Packaging the extension
+
+See [RELEASE](RELEASE.md)
+
 
 ## Acknowledgment
 

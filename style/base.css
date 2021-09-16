@@ -1,0 +1,36 @@
+.jupyterlab-flake8-lint-message span {
+  display: none;
+}
+
+.jupyterlab-flake8-lint-message span:hover {
+  display: block;
+}
+
+.CodeMirror-lintgutter {
+  padding: 0 8px;
+}
+
+.jupyterlab-flake8-lint-gutter-container {
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+.jupyterlab-flake8-lint-gutter-message {
+  background: var(--jp-layout-color4);
+  border-radius: 4px;
+  color: white;
+  left: 16px;
+  padding: 2px 5px;
+  position: absolute;
+  top: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.jupyterlab-flake8-lint-gutter-container:hover
+  .jupyterlab-flake8-lint-gutter-message {
+  visibility: visible;
+}

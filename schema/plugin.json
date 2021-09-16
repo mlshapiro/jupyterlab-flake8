@@ -1,8 +1,8 @@
 {
-  "jupyter.lab.setting-icon-label": "Flake8",
-  "jupyter.lab.setting-icon-class": "jp-SettingsIcon",
+  "jupyter.lab.shortcuts": [],
   "title": "Jupyterlab-Flake8",
-  "description": "Linter settings",
+  "description": "Jupyterlab-Flake8 Linter settings.",
+  "type": "object",
   "properties": {
     "toggled": {
       "type": "boolean",
@@ -45,6 +45,5 @@
       "default": ""
     }
   },
-  "additionalProperties": false,
-  "type": "object"
+  "additionalProperties": false
 }

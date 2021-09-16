@@ -5,3 +5,4 @@ node_modules
 **/static
 **/package.json
 .eggs
+jupyterlab_flake8
